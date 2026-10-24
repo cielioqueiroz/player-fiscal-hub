@@ -9,6 +9,7 @@ import '../models/documento.dart';
 import '../models/empresa.dart';
 import '../models/entrega.dart';
 import '../models/obrigacao_empresa.dart';
+import '../models/pagina_entregas.dart';
 import '../models/resumo_geracao.dart';
 import '../models/resumo_entregas.dart';
 import '../models/tipo_obrigacao.dart';
@@ -152,11 +153,15 @@ class ApiClient {
     _objeto(ResumoGeracao.fromJson),
   );
 
-  Future<List<Entrega>> listarEntregas({
+  Future<PaginaEntregas> listarEntregas({
     int? empresaId,
     String? tipo,
     String? competencia,
     String? situacao,
+    int pagina = 0,
+    int tamanho = 20,
+    String campoOrdenacao = 'dataVencimento',
+    bool crescente = true,
   }) {
     final filtros = <String, String>{
       if (empresaId != null) 'empresaId': '$empresaId',
@@ -164,10 +169,13 @@ class ApiClient {
       if (competencia != null && competencia.trim().isNotEmpty)
         'competencia': competencia.trim(),
       'situacao': ?situacao,
+      'page': '$pagina',
+      'size': '$tamanho',
+      'sort': '$campoOrdenacao,${crescente ? 'asc' : 'desc'}',
     };
     return _chamar(
       () => _client.get(_uri('/entregas', filtros)),
-      _lista(Entrega.fromJson),
+      _objeto(PaginaEntregas.fromJson),
     );
   }
 

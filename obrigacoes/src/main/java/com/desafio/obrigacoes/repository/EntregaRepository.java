@@ -3,6 +3,9 @@ package com.desafio.obrigacoes.repository;
 import com.desafio.obrigacoes.model.Entrega;
 import com.desafio.obrigacoes.model.SituacaoEntrega;
 import com.desafio.obrigacoes.model.TipoObrigacao;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -59,18 +62,19 @@ public interface EntregaRepository extends JpaRepository<Entrega, Long> {
             @Param("concluida") SituacaoEntrega concluida,
             @Param("cancelada") SituacaoEntrega cancelada);
 
+    @EntityGraph(attributePaths = "empresa")
     @Query("""
-            select e from Entrega e join fetch e.empresa
+            select e from Entrega e
             where (:empresaId is null or e.empresa.id = :empresaId)
               and (:tipo is null or e.tipo = :tipo)
               and (:competencia is null or e.competencia = :competencia)
               and (:situacao is null or e.situacao = :situacao)
-            order by e.dataVencimento, e.id
             """)
-    List<Entrega> buscar(@Param("empresaId") Long empresaId,
+    Page<Entrega> buscar(@Param("empresaId") Long empresaId,
                          @Param("tipo") TipoObrigacao tipo,
                          @Param("competencia") String competencia,
-                         @Param("situacao") SituacaoEntrega situacao);
+                         @Param("situacao") SituacaoEntrega situacao,
+                         Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Entrega e where e.id = :id")

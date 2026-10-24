@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/models/documento.dart';
 import 'package:frontend/models/entrega.dart';
 import 'package:frontend/models/resumo_geracao.dart';
+import 'package:frontend/models/pagina_entregas.dart';
 import 'package:frontend/models/tipo_obrigacao.dart';
 
 final entregaJson = <String, dynamic>{
@@ -61,5 +62,19 @@ void main() {
   test('ResumoGeracao', () {
     final r = ResumoGeracao.fromJson({'mesReferencia': '2026-09', 'criadas': 6, 'jaExistentes': 0});
     expect([r.criadas, r.jaExistentes], [6, 0]);
+  });
+
+  test('PaginaEntregas lê dados da paginação', () {
+    final pagina = PaginaEntregas.fromJson({
+      'conteudo': [entregaJson],
+      'pagina': 1,
+      'tamanho': 20,
+      'totalElementos': 21,
+      'totalPaginas': 2,
+    });
+    expect(pagina.conteudo.single.id, 7);
+    expect(pagina.pagina, 1);
+    expect(pagina.totalElementos, 21);
+    expect(pagina.totalPaginas, 2);
   });
 }

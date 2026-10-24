@@ -101,6 +101,41 @@ void main() {
     expect(_listagens(chamadas).last.url.queryParameters['situacao'], 'ABERTA');
   });
 
+  testWidgets('desktopPaginaEExibeTotalDeRegistros', (tester) async {
+    final chamadas = await abrir(tester, extras: {
+      'GET /entregas': (http.Request request) {
+        final pagina = request.url.queryParameters['page'];
+        return {
+          'conteudo': [
+            entregaJson({'empresaNome': pagina == '0' ? 'Padaria' : 'Mercado'}),
+          ],
+          'pagina': int.parse(pagina ?? '0'),
+          'tamanho': 1,
+          'totalElementos': 2,
+          'totalPaginas': 2,
+        };
+      },
+    });
+
+    expect(find.text('2 registros'), findsOneWidget);
+    expect(find.text('Padaria'), findsOneWidget);
+    await tester.tap(find.byTooltip('Próxima página'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(_listagens(chamadas).last.url.queryParameters['page'], '1');
+  });
+
+  testWidgets('trocarOrdenacaoSolicitaPrimeiraPagina', (tester) async {
+    final chamadas = await abrir(tester);
+
+    await tester.tap(find.byKey(const Key('ordenacaoDirecao')));
+    await tester.pumpAndSettle();
+
+    expect(_listagens(chamadas).last.url.queryParameters['page'], '0');
+    expect(_listagens(chamadas).last.url.queryParameters['sort'], 'dataVencimento,desc');
+  });
+
   testWidgets('selecoesAguardamFiltrarEAplicamTodosOsCamposJuntos', (tester) async {
     final chamadas = await abrir(tester, extras: {
       'GET /entregas': (http.Request req) => [

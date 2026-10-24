@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../models/empresa.dart';
 import '../models/entrega.dart';
+import '../models/pagina_entregas.dart';
 import '../models/resumo_entregas.dart';
 import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
@@ -40,6 +41,13 @@ class _EntregasPageState extends State<EntregasPage> {
   List<Empresa> _empresas = [];
   List<Entrega> _entregas = [];
   ResumoEntregas? _resumo;
+  int _pagina = 0;
+  int _totalPaginas = 0;
+  int _totalElementos = 0;
+  bool _carregandoMais = false;
+  String? _erroMais;
+  String _campoOrdenacao = 'dataVencimento';
+  bool _crescente = true;
   int? _empresaId;
   String? _tipo;
   String? _situacao;
@@ -61,11 +69,14 @@ class _EntregasPageState extends State<EntregasPage> {
     super.dispose();
   }
 
-  Future<List<Entrega>> _buscarEntregas() => widget.api.listarEntregas(
+  Future<PaginaEntregas> _buscarEntregas({int pagina = 0}) => widget.api.listarEntregas(
     empresaId: _aplicados.empresaId,
     tipo: _aplicados.tipo,
     competencia: _aplicados.competencia,
     situacao: _aplicados.situacao,
+    pagina: pagina,
+    campoOrdenacao: _campoOrdenacao,
+    crescente: _crescente,
   );
 
   Future<void> _aplicarFiltros() {
@@ -94,13 +105,16 @@ class _EntregasPageState extends State<EntregasPage> {
       ]);
       if (!mounted) return;
       final empresas = resultados[0] as List<Empresa>;
-      final entregas = resultados[1] as List<Entrega>;
+      final pagina = resultados[1] as PaginaEntregas;
       final resumo = resultados[2] as ResumoEntregas;
       setState(() {
         _empresas = empresas;
         _resumo = resumo;
         if (minha == _requisicao) {
-          _entregas = entregas;
+          _entregas = pagina.conteudo;
+          _pagina = pagina.pagina;
+          _totalPaginas = pagina.totalPaginas;
+          _totalElementos = pagina.totalElementos;
           _carregando = false;
         }
       });
@@ -126,8 +140,72 @@ class _EntregasPageState extends State<EntregasPage> {
       ]);
       if (!mounted || minha != _requisicao) return;
       setState(() {
-        _entregas = resultados[0] as List<Entrega>;
+        final pagina = resultados[0] as PaginaEntregas;
+        _entregas = pagina.conteudo;
+        _pagina = pagina.pagina;
+        _totalPaginas = pagina.totalPaginas;
+        _totalElementos = pagina.totalElementos;
         _resumo = resultados[1] as ResumoEntregas;
+        _carregando = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || minha != _requisicao) return;
+      setState(() {
+        _erro = e.mensagem;
+        _carregando = false;
+      });
+    }
+  }
+
+  Future<void> _alterarOrdenacao({String? campo, bool? crescente}) async {
+    setState(() {
+      _campoOrdenacao = campo ?? _campoOrdenacao;
+      _crescente = crescente ?? _crescente;
+      _pagina = 0;
+    });
+    await _recarregarLista();
+  }
+
+  Future<void> _carregarMais() async {
+    if (_carregandoMais || _carregando || _pagina + 1 >= _totalPaginas) return;
+    setState(() {
+      _carregandoMais = true;
+      _erroMais = null;
+    });
+    try {
+      final pagina = await _buscarEntregas(pagina: _pagina + 1);
+      if (!mounted) return;
+      setState(() {
+        _entregas = [..._entregas, ...pagina.conteudo];
+        _pagina = pagina.pagina;
+        _totalPaginas = pagina.totalPaginas;
+        _totalElementos = pagina.totalElementos;
+        _carregandoMais = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erroMais = e.mensagem;
+        _carregandoMais = false;
+      });
+    }
+  }
+
+  Future<void> _irParaPagina(int pagina) async {
+    if (pagina < 0 || pagina >= _totalPaginas) return;
+    final minha = ++_requisicao;
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final resultado = await _buscarEntregas(pagina: pagina);
+      if (!mounted || minha != _requisicao) return;
+      setState(() {
+        _entregas = resultado.conteudo;
+        _pagina = resultado.pagina;
+        _totalPaginas = resultado.totalPaginas;
+        _totalElementos = resultado.totalElementos;
         _carregando = false;
       });
     } on ApiException catch (e) {
@@ -287,6 +365,25 @@ class _EntregasPageState extends State<EntregasPage> {
             onSubmitted: (_) => _aplicarFiltros(),
           ),
         ),
+        _filtro<String>(
+          rotulo: 'Ordenar por',
+          chave: const Key('ordenacaoCampo'),
+          valor: _campoOrdenacao,
+          itens: const [
+            DropdownMenuItem(value: 'dataVencimento', child: Text('Vencimento')),
+            DropdownMenuItem(value: 'competencia', child: Text('Competência')),
+            DropdownMenuItem(value: 'tipo', child: Text('Tipo')),
+            DropdownMenuItem(value: 'situacao', child: Text('Situação')),
+            DropdownMenuItem(value: 'empresa', child: Text('Empresa')),
+          ],
+          aoMudar: (v) => _alterarOrdenacao(campo: v),
+        ),
+        OutlinedButton.icon(
+          key: const Key('ordenacaoDirecao'),
+          onPressed: () => _alterarOrdenacao(crescente: !_crescente),
+          icon: Icon(_crescente ? Icons.arrow_upward : Icons.arrow_downward),
+          label: Text(_crescente ? 'Crescente' : 'Decrescente'),
+        ),
         FilledButton.tonal(
           onPressed: _aplicarFiltros,
           child: const Text('Filtrar'),
@@ -340,12 +437,45 @@ class _EntregasPageState extends State<EntregasPage> {
       );
     }
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
+      builder: (context, constraints) {
+        final mobile = constraints.maxWidth < 600;
+        if (mobile) {
+          return NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.extentAfter < 240) _carregarMais();
+              return false;
+            },
+            child: ListView.builder(
+              itemCount: _entregas.length + (_carregandoMais || _erroMais != null ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _entregas.length) {
+                  if (_erroMais != null) {
+                    return TextButton(onPressed: _carregarMais, child: Text('Tentar novamente: $_erroMais'));
+                  }
+                  return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+                }
+                final entrega = _entregas[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  child: ListTile(
+                    title: Text('${entrega.empresaNome} • ${entrega.tipo}'),
+                    subtitle: Text('Competência ${entrega.competencia} • Vence ${formatarData(entrega.dataVencimento)}'),
+                    trailing: SituacaoChip(situacao: entrega.situacao),
+                    onTap: () => _abrir(entrega),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+        return Column(
+          children: [
+            Expanded(child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
               showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Empresa')),
@@ -367,10 +497,24 @@ class _EntregasPageState extends State<EntregasPage> {
                     ],
                   ),
               ],
+                  ),
+                ),
+              ),
+            )),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                Text('$_totalElementos registros'),
+                IconButton(onPressed: _pagina > 0 ? () => _irParaPagina(_pagina - 1) : null,
+                    tooltip: 'Página anterior', icon: const Icon(Icons.chevron_left)),
+                Text('${_pagina + 1} de ${_totalPaginas == 0 ? 1 : _totalPaginas}'),
+                IconButton(onPressed: _pagina + 1 < _totalPaginas ? () => _irParaPagina(_pagina + 1) : null,
+                    tooltip: 'Próxima página', icon: const Icon(Icons.chevron_right)),
+              ]),
             ),
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
   }
 

@@ -139,14 +139,26 @@ void main() {
     late http.Request req;
     final api = _cliente((r) async {
       req = r;
-      return _json([], 200);
+      return _json({
+        'conteudo': [],
+        'pagina': 0,
+        'tamanho': 20,
+        'totalElementos': 0,
+        'totalPaginas': 0,
+      }, 200);
     });
     await api.listarEntregas(
       empresaId: 3,
       competencia: '  ',
       situacao: 'ABERTA',
     );
-    expect(req.url.queryParameters, {'empresaId': '3', 'situacao': 'ABERTA'});
+    expect(req.url.queryParameters, {
+      'empresaId': '3',
+      'situacao': 'ABERTA',
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
+    });
   });
 
   test('alterarSituacaoOmiteCamposNulos', () async {

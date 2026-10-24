@@ -34,6 +34,17 @@ ApiClient apiFake(Map<String, Object?> rotas, {List<http.Request>? chamadas}) {
       var valor = rotas[chave];
       if (valor is Function) valor = valor(req);
       if (valor is Future) valor = await valor;
+      if (chave == 'GET /entregas' && valor is List) {
+        final pagina = int.tryParse(req.url.queryParameters['page'] ?? '') ?? 0;
+        final tamanho = int.tryParse(req.url.queryParameters['size'] ?? '') ?? 20;
+        return jsonResp({
+          'conteudo': valor,
+          'pagina': pagina,
+          'tamanho': tamanho,
+          'totalElementos': valor.length,
+          'totalPaginas': valor.isEmpty ? 0 : 1,
+        });
+      }
       return valor is http.Response ? valor : jsonResp(valor);
     }),
   );

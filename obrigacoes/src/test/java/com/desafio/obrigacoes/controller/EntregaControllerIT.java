@@ -118,14 +118,18 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
-                .andExpect(jsonPath("$[0].tipo").value("ECD"))
-                .andExpect(jsonPath("$[0].empresaId").value(empresaA))
-                .andExpect(jsonPath("$[0].dataVencimento").value("2026-05-31"))
-                .andExpect(jsonPath("$[1].tipo").value("ECD"))
-                .andExpect(jsonPath("$[1].empresaId").value(empresaB))
-                .andExpect(jsonPath("$[2].tipo").value("DAS"))
-                .andExpect(jsonPath("$[3].tipo").value("DCTF"));
+                .andExpect(jsonPath("$.conteudo.length()").value(4))
+                .andExpect(jsonPath("$.pagina").value(0))
+                .andExpect(jsonPath("$.tamanho").value(20))
+                .andExpect(jsonPath("$.totalElementos").value(4))
+                .andExpect(jsonPath("$.totalPaginas").value(1))
+                .andExpect(jsonPath("$.conteudo[0].tipo").value("ECD"))
+                .andExpect(jsonPath("$.conteudo[0].empresaId").value(empresaA))
+                .andExpect(jsonPath("$.conteudo[0].dataVencimento").value("2026-05-31"))
+                .andExpect(jsonPath("$.conteudo[1].tipo").value("ECD"))
+                .andExpect(jsonPath("$.conteudo[1].empresaId").value(empresaB))
+                .andExpect(jsonPath("$.conteudo[2].tipo").value("DAS"))
+                .andExpect(jsonPath("$.conteudo[3].tipo").value("DCTF"));
     }
 
     @Test
@@ -134,7 +138,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("empresaId", String.valueOf(empresaA)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.conteudo.length()").value(2));
     }
 
     @Test
@@ -143,7 +147,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("tipo", "ECD"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.conteudo.length()").value(2));
     }
 
     @Test
@@ -152,7 +156,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("competencia", "2025"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.conteudo.length()").value(2));
     }
 
     @Test
@@ -161,7 +165,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("competencia", ""))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4));
+                .andExpect(jsonPath("$.conteudo.length()").value(4));
 
         mockMvc.perform(get("/entregas")
                         .param("empresaId", "")
@@ -169,7 +173,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
                         .param("competencia", "")
                         .param("situacao", ""))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4));
+                .andExpect(jsonPath("$.conteudo.length()").value(4));
     }
 
     @Test
@@ -178,7 +182,7 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("situacao", "ABERTA").param("tipo", "DAS"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.conteudo.length()").value(1));
     }
 
     @Test
@@ -201,7 +205,46 @@ class EntregaControllerIT extends BaseIntegrationTest {
 
         mockMvc.perform(get("/entregas").param("empresaId", "999999"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.conteudo.length()").value(0));
+    }
+
+    @Test
+    void paginaETamanhoRetornamTotaisComFiltroCombinado() throws Exception {
+        gerar(MES_MAIO);
+
+        mockMvc.perform(get("/entregas").param("empresaId", String.valueOf(empresaA))
+                        .param("situacao", "ABERTA").param("page", "1").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pagina").value(1))
+                .andExpect(jsonPath("$.tamanho").value(1))
+                .andExpect(jsonPath("$.totalElementos").value(2))
+                .andExpect(jsonPath("$.totalPaginas").value(2))
+                .andExpect(jsonPath("$.conteudo.length()").value(1));
+    }
+
+    @Test
+    void ordenaPorTipoEmOrdemDescendente() throws Exception {
+        gerar(MES_MAIO);
+
+        mockMvc.perform(get("/entregas").param("sort", "tipo,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conteudo[0].tipo").value("ECD"))
+                .andExpect(jsonPath("$.conteudo[2].tipo").value("DCTF"));
+    }
+
+    @Test
+    void ordenacaoForaDaListaPermitidaDevolve400() throws Exception {
+        mockMvc.perform(get("/entregas").param("sort", "criadoEm,desc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value(
+                        "Ordenação permitida: dataVencimento, competencia, tipo, situacao e empresa"));
+    }
+
+    @Test
+    void tamanhoAcimaDeCemDevolve400() throws Exception {
+        mockMvc.perform(get("/entregas").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("O tamanho máximo da página é 100"));
     }
 
     @Test

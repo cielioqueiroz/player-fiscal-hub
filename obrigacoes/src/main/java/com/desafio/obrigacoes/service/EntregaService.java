@@ -10,6 +10,8 @@ import com.desafio.obrigacoes.model.SituacaoEntrega;
 import com.desafio.obrigacoes.model.TipoObrigacao;
 import com.desafio.obrigacoes.repository.EntregaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -27,8 +29,9 @@ public class EntregaService {
         this.clock = clock;
     }
 
-    public List<Entrega> listar(Long empresaId, TipoObrigacao tipo, String competencia, SituacaoEntrega situacao) {
-        return entregaRepository.buscar(empresaId, tipo, competencia, situacao);
+    public Page<Entrega> listar(Long empresaId, TipoObrigacao tipo, String competencia, SituacaoEntrega situacao,
+                                Pageable pageable) {
+        return entregaRepository.buscar(empresaId, tipo, competencia, situacao, pageable);
     }
 
     public ResumoEntregasResponse resumir(Long empresaId) {
