@@ -1,0 +1,28 @@
+# IDE
+.vscode/
+.idea/
+
+# Java / Maven
+obrigacoes/target/
+
+# Flutter
+frontend/.dart_tool/
+frontend/build/
+
+# Environment
+.env
+.env.*
+!.env.example
+*.env
+
+# Local artifacts may contain database snapshots, documents, logs or build notes
+/tmp/
+/output/
+debug.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

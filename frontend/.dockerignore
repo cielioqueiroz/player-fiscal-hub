@@ -1,0 +1,9 @@
+.dart_tool/
+.flutter-plugins-dependencies
+build/
+**/flutter/ephemeral/
+.env*
+.git/
+.idea/
+.vscode/
+*.log
