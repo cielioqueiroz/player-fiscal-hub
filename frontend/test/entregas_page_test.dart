@@ -81,6 +81,26 @@ void main() {
     expect(_naTabela('ABERTA'), findsOneWidget);
   });
 
+  testWidgets('cardSituacaoFiltraLista', (tester) async {
+    final chamadas = await abrir(tester, entregas: [entregaJson()], extras: {
+      'GET /entregas/resumo': {
+        'total': 1,
+        'abertas': 1,
+        'atrasadas': 0,
+        'concluidas': 0,
+        'canceladas': 0,
+        'venceEmAte7Dias': 1,
+        'vencidasSemBaixa': 0,
+      },
+    });
+
+    expect(find.text('Abertas'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('resumoABERTA')));
+    await tester.pumpAndSettle();
+
+    expect(_listagens(chamadas).last.url.queryParameters['situacao'], 'ABERTA');
+  });
+
   testWidgets('selecoesAguardamFiltrarEAplicamTodosOsCamposJuntos', (tester) async {
     final chamadas = await abrir(tester, extras: {
       'GET /entregas': (http.Request req) => [

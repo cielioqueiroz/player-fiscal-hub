@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = "obrigacoes.atualizacao-atrasadas.habilitada=false")
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, RelogioFixoTestConfig.class})
 public abstract class BaseIntegrationTest {

@@ -2,6 +2,7 @@ package com.desafio.obrigacoes.service;
 
 import com.desafio.obrigacoes.dto.AlterarSituacaoRequest;
 import com.desafio.obrigacoes.dto.EntregaResponse;
+import com.desafio.obrigacoes.dto.ResumoEntregasResponse;
 import com.desafio.obrigacoes.exception.DadosInvalidosException;
 import com.desafio.obrigacoes.exception.RecursoNaoEncontradoException;
 import com.desafio.obrigacoes.model.Entrega;
@@ -28,6 +29,12 @@ public class EntregaService {
 
     public List<Entrega> listar(Long empresaId, TipoObrigacao tipo, String competencia, SituacaoEntrega situacao) {
         return entregaRepository.buscar(empresaId, tipo, competencia, situacao);
+    }
+
+    public ResumoEntregasResponse resumir(Long empresaId) {
+        LocalDate hoje = LocalDate.now(clock);
+        return entregaRepository.resumir(empresaId, hoje, hoje.plusDays(7), SituacaoEntrega.ABERTA,
+                SituacaoEntrega.ATRASADA, SituacaoEntrega.CONCLUIDA, SituacaoEntrega.CANCELADA);
     }
 
     public Entrega buscarPorId(Long id) {

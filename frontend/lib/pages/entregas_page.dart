@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../models/empresa.dart';
 import '../models/entrega.dart';
+import '../models/resumo_entregas.dart';
 import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
@@ -38,6 +39,7 @@ class _EntregasPageState extends State<EntregasPage> {
   final _competencia = TextEditingController();
   List<Empresa> _empresas = [];
   List<Entrega> _entregas = [];
+  ResumoEntregas? _resumo;
   int? _empresaId;
   String? _tipo;
   String? _situacao;
@@ -88,12 +90,15 @@ class _EntregasPageState extends State<EntregasPage> {
       final resultados = await Future.wait<Object>([
         widget.api.listarEmpresas(),
         _buscarEntregas(),
+        widget.api.resumirEntregas(empresaId: _aplicados.empresaId),
       ]);
       if (!mounted) return;
       final empresas = resultados[0] as List<Empresa>;
       final entregas = resultados[1] as List<Entrega>;
+      final resumo = resultados[2] as ResumoEntregas;
       setState(() {
         _empresas = empresas;
+        _resumo = resumo;
         if (minha == _requisicao) {
           _entregas = entregas;
           _carregando = false;
@@ -115,10 +120,14 @@ class _EntregasPageState extends State<EntregasPage> {
       _erro = null;
     });
     try {
-      final entregas = await _buscarEntregas();
+      final resultados = await Future.wait<Object>([
+        _buscarEntregas(),
+        widget.api.resumirEntregas(empresaId: _aplicados.empresaId),
+      ]);
       if (!mounted || minha != _requisicao) return;
       setState(() {
-        _entregas = entregas;
+        _entregas = resultados[0] as List<Entrega>;
+        _resumo = resultados[1] as ResumoEntregas;
         _carregando = false;
       });
     } on ApiException catch (e) {
@@ -164,6 +173,7 @@ class _EntregasPageState extends State<EntregasPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_resumo != null) _cardsResumo(_resumo!),
           Padding(padding: const EdgeInsets.all(16), child: _filtros()),
           const Divider(height: 1),
           Expanded(child: _corpo()),
@@ -171,6 +181,56 @@ class _EntregasPageState extends State<EntregasPage> {
       ),
     );
   }
+
+  Widget _cardsResumo(ResumoEntregas resumo) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    child: Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        _cardSituacao('Abertas', resumo.abertas, 'ABERTA'),
+        _cardSituacao('Atrasadas', resumo.atrasadas, 'ATRASADA'),
+        _cardSituacao('Concluídas', resumo.concluidas, 'CONCLUIDA'),
+        _cardSituacao('Canceladas', resumo.canceladas, 'CANCELADA'),
+        _cardNumero('Vencem em até 7 dias', resumo.venceEmAte7Dias),
+        _cardNumero('Vencidas sem baixa', resumo.vencidasSemBaixa),
+      ],
+    ),
+  );
+
+  Widget _cardSituacao(String titulo, int quantidade, String situacao) => SizedBox(
+    width: 155,
+    child: Card(
+      child: InkWell(
+        key: Key('resumo$situacao'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          setState(() => _situacao = situacao);
+          _aplicarFiltros();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(titulo),
+            Text('$quantidade', style: Theme.of(context).textTheme.headlineSmall),
+          ]),
+        ),
+      ),
+    ),
+  );
+
+  Widget _cardNumero(String titulo, int quantidade) => SizedBox(
+    width: 155,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(titulo),
+          Text('$quantidade', style: Theme.of(context).textTheme.headlineSmall),
+        ]),
+      ),
+    ),
+  );
 
   Widget _filtros() {
     final empresaSelecionada = _empresas.any((e) => e.id == _empresaId)

@@ -38,6 +38,29 @@ void main() {
     );
   });
 
+  test('resumoDeEntregasAplicaFiltroPorEmpresa', () async {
+    http.Request? requisicao;
+    final api = _cliente((r) async {
+      requisicao = r;
+      return _json({
+        'total': 4,
+        'abertas': 2,
+        'atrasadas': 1,
+        'concluidas': 1,
+        'canceladas': 0,
+        'venceEmAte7Dias': 1,
+        'vencidasSemBaixa': 1,
+      }, 200);
+    });
+
+    final resumo = await api.resumirEntregas(empresaId: 5);
+
+    expect(requisicao?.url.path, '/entregas/resumo');
+    expect(requisicao?.url.queryParameters, {'empresaId': '5'});
+    expect(resumo.total, 4);
+    expect(resumo.vencidasSemBaixa, 1);
+  });
+
   test('corpoDeErroSemJson', () async {
     final api = _cliente((_) async => http.Response('<html>', 500));
     await expectLater(

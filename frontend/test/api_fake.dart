@@ -18,6 +18,17 @@ ApiClient apiFake(Map<String, Object?> rotas, {List<http.Request>? chamadas}) {
       chamadas?.add(req);
       final chave = '${req.method} ${req.url.path}';
       if (!rotas.containsKey(chave)) {
+        if (chave == 'GET /entregas/resumo') {
+          return jsonResp({
+            'total': 0,
+            'abertas': 0,
+            'atrasadas': 0,
+            'concluidas': 0,
+            'canceladas': 0,
+            'venceEmAte7Dias': 0,
+            'vencidasSemBaixa': 0,
+          });
+        }
         return jsonResp({'erro': 'rota não simulada: $chave'}, 404);
       }
       var valor = rotas[chave];

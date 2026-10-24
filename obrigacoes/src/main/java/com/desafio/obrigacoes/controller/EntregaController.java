@@ -4,6 +4,7 @@ import com.desafio.obrigacoes.dto.AlterarSituacaoRequest;
 import com.desafio.obrigacoes.dto.EntregaResponse;
 import com.desafio.obrigacoes.dto.GerarEntregasRequest;
 import com.desafio.obrigacoes.dto.ResumoGeracaoResponse;
+import com.desafio.obrigacoes.dto.ResumoEntregasResponse;
 import com.desafio.obrigacoes.exception.DadosInvalidosException;
 import com.desafio.obrigacoes.model.SituacaoEntrega;
 import com.desafio.obrigacoes.model.TipoObrigacao;
@@ -52,6 +53,11 @@ public class EntregaController {
         return entregaService.listar(empresaId, tipo, competenciaFiltro, situacao).stream()
                 .map(e -> EntregaResponse.de(e, hoje))
                 .toList();
+    }
+
+    @GetMapping("/resumo")
+    public ResumoEntregasResponse resumir(@RequestParam(required = false) Long empresaId) {
+        return entregaService.resumir(empresaId);
     }
 
     @GetMapping("/{id}")

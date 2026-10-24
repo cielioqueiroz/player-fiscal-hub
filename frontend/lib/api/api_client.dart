@@ -10,6 +10,7 @@ import '../models/empresa.dart';
 import '../models/entrega.dart';
 import '../models/obrigacao_empresa.dart';
 import '../models/resumo_geracao.dart';
+import '../models/resumo_entregas.dart';
 import '../models/tipo_obrigacao.dart';
 import 'api_exception.dart';
 
@@ -169,6 +170,13 @@ class ApiClient {
       _lista(Entrega.fromJson),
     );
   }
+
+  Future<ResumoEntregas> resumirEntregas({int? empresaId}) => _chamar(
+    () => _client.get(_uri('/entregas/resumo', {
+      if (empresaId != null) 'empresaId': '$empresaId',
+    })),
+    _objeto(ResumoEntregas.fromJson),
+  );
 
   Future<Entrega> buscarEntrega(int id) => _chamar(
     () => _client.get(_uri('/entregas/$id')),

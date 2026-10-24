@@ -31,6 +31,34 @@ public interface EntregaRepository extends JpaRepository<Entrega, Long> {
                             @Param("dataVencimento") LocalDate dataVencimento,
                             @Param("criadoEm") LocalDateTime criadoEm);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Entrega e set e.situacao = :atrasada where e.situacao = :aberta and e.dataVencimento < :hoje")
+    int atualizarAbertasVencidas(@Param("hoje") LocalDate hoje,
+                                 @Param("aberta") SituacaoEntrega aberta,
+                                 @Param("atrasada") SituacaoEntrega atrasada);
+
+    @Query("""
+            select new com.desafio.obrigacoes.dto.ResumoEntregasResponse(
+                count(e),
+                count(case when e.situacao = :aberta then 1 else null end),
+                count(case when e.situacao = :atrasada then 1 else null end),
+                count(case when e.situacao = :concluida then 1 else null end),
+                count(case when e.situacao = :cancelada then 1 else null end),
+                count(case when e.situacao = :aberta and e.dataVencimento between :hoje and :limite then 1 else null end),
+                count(case when e.situacao = :aberta and e.dataVencimento < :hoje then 1 else null end)
+            )
+            from Entrega e
+            where (:empresaId is null or e.empresa.id = :empresaId)
+            """)
+    com.desafio.obrigacoes.dto.ResumoEntregasResponse resumir(
+            @Param("empresaId") Long empresaId,
+            @Param("hoje") LocalDate hoje,
+            @Param("limite") LocalDate limite,
+            @Param("aberta") SituacaoEntrega aberta,
+            @Param("atrasada") SituacaoEntrega atrasada,
+            @Param("concluida") SituacaoEntrega concluida,
+            @Param("cancelada") SituacaoEntrega cancelada);
+
     @Query("""
             select e from Entrega e join fetch e.empresa
             where (:empresaId is null or e.empresa.id = :empresaId)
