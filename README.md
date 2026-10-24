@@ -322,11 +322,11 @@ raiz do projeto (a pasta que contém docker-compose.yml)
 execute:
 
 ```powershell
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 docker compose up -d --build
 ```
 
-Defina senhas locais exclusivas no arquivo `.env`. Ele fica fora do Git; nunca envie as credenciais locais ao repositório.
+O MySQL exige uma senha para a conta administrativa `root` e outra para o usuário da aplicação (`obrigacoes`), usada pelo backend e pelo healthcheck. Elas não são login de usuário na interface. Como este é um ambiente de demonstração local, use valores descartáveis de teste; não precisa usar senhas pessoais ou de produção. Configure-os no `.env` antes da primeira inicialização. Preserve um `.env` já existente: mudar essas variáveis depois que o volume MySQL foi inicializado não altera as contas dentro do banco. O `.env` fica fora do Git; nunca envie esse arquivo ao repositório.
 
 Depois confira:
 
