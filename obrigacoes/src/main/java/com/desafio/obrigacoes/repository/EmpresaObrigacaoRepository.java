@@ -16,4 +16,6 @@ public interface EmpresaObrigacaoRepository extends JpaRepository<EmpresaObrigac
     Optional<EmpresaObrigacao> findByEmpresaIdAndTipo(Long empresaId, TipoObrigacao tipo);
 
     List<EmpresaObrigacao> findAllByOrderByEmpresaIdAscTipoAsc();
+
+    List<EmpresaObrigacao> findAllByEmpresaAtivaTrueOrderByEmpresaIdAscTipoAsc();
 }

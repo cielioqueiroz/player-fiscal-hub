@@ -2,11 +2,11 @@
 
 Aplicação desenvolvida como desafio técnico para gerenciamento de obrigações de diferentes empresas.
 
-O sistema permite cadastrar empresas, vincular obrigações de um catálogo por regime tributário, gerar entregas por competência, acompanhar e alterar sua situação e anexar ou baixar documentos.
+O sistema permite cadastrar, editar e inativar empresas, vincular obrigações de um catálogo por regime tributário, gerar entregas por competência, acompanhar e alterar sua situação e anexar ou baixar documentos.
 
 A interface Flutter Web consome uma API REST Java/Spring Boot, com persistência em MySQL e migrations Flyway. Docker Compose inicia os três serviços. A CI verifica os testes, o build web e a integração dos contêineres.
 
-O tipo e o vencimento vêm das regras do catálogo. A atualização de uma entrega ocorre pelas transições de situação; não há edição ou exclusão de empresas, exclusão de entregas ou reabertura de estados finais.
+O tipo e o vencimento vêm das regras do catálogo. A atualização de uma entrega ocorre pelas transições de situação; não há exclusão de empresas ou entregas, nem reabertura de estados finais.
 
 ---
 
@@ -148,7 +148,7 @@ desafio-player
 
 ### Empresa
 
-Campos: `id`, `nome`, `cnpj` e `regimeTributario` (`SIMPLES`, `LUCRO_PRESUMIDO` ou `LUCRO_REAL`).
+Campos: `id`, `nome`, `cnpj`, `regimeTributario` (`SIMPLES`, `LUCRO_PRESUMIDO` ou `LUCRO_REAL`) e `ativa`. A listagem inclui empresas ativas por padrão; `incluirInativas=true` inclui também as inativas. Empresas inativas não participam de novas gerações e seu histórico continua consultável.
 
 O CNPJ é validado no backend (dígitos verificadores), nos formatos numérico e alfanumérico, com ou sem máscara. CNPJ duplicado é recusado.
 
@@ -218,6 +218,7 @@ O Flyway versiona a estrutura do banco. Migrations:
 V1__criar_tabelas.sql                       empresa e obrigacao (modelo inicial)
 V2__catalogo_obrigacoes_e_entregas.sql      regime tributário, vínculos, entregas e documentos
 V3__remover_obrigacao_legada.sql            remove a tabela obrigacao do modelo antigo
+V4__adicionar_ativa_empresa.sql             indica se a empresa está ativa
 ```
 
 O Hibernate apenas valida o schema:
@@ -237,8 +238,11 @@ Erros sempre voltam no formato `{ "erro": "mensagem" }`.
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/` | Verifica se a API está no ar |
-| `GET` / `POST` | `/empresas` | Lista / cadastra empresa (CNPJ validado, com regime tributário) |
+| `GET` / `POST` | `/empresas` | Lista empresas ativas / cadastra empresa (CNPJ validado, com regime tributário) |
+| `GET` | `/empresas?incluirInativas=true` | Lista empresas ativas e inativas |
 | `GET` | `/empresas/{id}` | Busca empresa por ID |
+| `PUT` | `/empresas/{id}` | Edita empresa; devolve `422` se obrigações anexadas forem incompatíveis com o novo regime |
+| `PATCH` | `/empresas/{id}/ativa` | Ativa ou inativa uma empresa |
 | `GET` | `/catalogo-obrigacoes` | Tipos de obrigação (DAS, DCTF, ECD) e regimes aceitos |
 | `GET` / `POST` | `/empresas/{empresaId}/obrigacoes` | Lista / anexa obrigação à empresa |
 | `DELETE` | `/empresas/{empresaId}/obrigacoes/{tipo}` | Remove o vínculo |
@@ -260,6 +264,9 @@ POST /entregas/gerar
 
 PATCH /entregas/1/situacao
 { "situacao": "CONCLUIDA", "dataConclusao": "2026-09-18" }
+
+PATCH /empresas/1/ativa
+{ "ativa": false }
 ```
 
 
@@ -406,7 +413,7 @@ Flutter com `StatefulWidget` e `setState` (sem gerenciador de estado externo). E
 
 | Tela | O que faz |
 |---|---|
-| Empresas | lista, cadastra (a mensagem do backend aparece no diálogo, por exemplo "CNPJ inválido") |
+| Empresas | lista, cadastra, edita e inativa/reativa (mensagens do backend aparecem no formulário) |
 | Obrigações da empresa | mostra os 3 tipos do catálogo: anexados, anexáveis e os que não se aplicam ao regime |
 | Gerar entregas | escolhe mês e ano e gera as entregas (idempotente) |
 | Entregas | lista com filtros (empresa, tipo, situação, competência) e destaque das vencidas |
@@ -572,7 +579,7 @@ A versão atual demonstra:
 
 ```text
 Java / Spring Boot e API REST
-MySQL, Spring Data JPA e Flyway (V1, V2, V3)
+MySQL, Spring Data JPA e Flyway (V1, V2, V3, V4)
 Regras de negócio no backend: CNPJ, catálogo por regime, entregas idempotentes, transições de situação
 Controle de concorrência (optimistic locking)
 Upload e download de documentos

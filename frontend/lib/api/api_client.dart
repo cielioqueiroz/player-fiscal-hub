@@ -77,8 +77,13 @@ class ApiClient {
     '$baseUrl$caminho',
   ).replace(queryParameters: query == null || query.isEmpty ? null : query);
 
-  Future<List<Empresa>> listarEmpresas() =>
-      _chamar(() => _client.get(_uri('/empresas')), _lista(Empresa.fromJson));
+  Future<List<Empresa>> listarEmpresas({bool incluirInativas = false}) =>
+      _chamar(
+        () => _client.get(_uri('/empresas', {
+          if (incluirInativas) 'incluirInativas': 'true',
+        })),
+        _lista(Empresa.fromJson),
+      );
 
   Future<Empresa> cadastrarEmpresa(String nome, String cnpj, String regime) {
     final corpo = jsonEncode({
@@ -91,6 +96,27 @@ class ApiClient {
       _objeto(Empresa.fromJson),
     );
   }
+
+  Future<Empresa> editarEmpresa(int id, String nome, String cnpj, String regime) {
+    final corpo = jsonEncode({
+      'nome': nome,
+      'cnpj': cnpj,
+      'regimeTributario': regime,
+    });
+    return _chamar(
+      () => _client.put(_uri('/empresas/$id'), headers: _json, body: corpo),
+      _objeto(Empresa.fromJson),
+    );
+  }
+
+  Future<Empresa> alterarAtivaEmpresa(int id, bool ativa) => _chamar(
+        () => _client.patch(
+          _uri('/empresas/$id/ativa'),
+          headers: _json,
+          body: jsonEncode({'ativa': ativa}),
+        ),
+        _objeto(Empresa.fromJson),
+      );
 
   Future<List<TipoObrigacao>> catalogo() => _chamar(
     () => _client.get(_uri('/catalogo-obrigacoes')),

@@ -25,6 +25,9 @@ public class Empresa {
     @Column(name = "regime_tributario", nullable = false, length = 30)
     private RegimeTributario regimeTributario;
 
+    @Column(nullable = false)
+    private boolean ativa = true;
+
     public Long getId() {
         return id;
     }
@@ -55,5 +58,13 @@ public class Empresa {
 
     public void setRegimeTributario(RegimeTributario regimeTributario) {
         this.regimeTributario = regimeTributario;
+    }
+
+    public boolean isAtiva() {
+        return ativa;
+    }
+
+    public void setAtiva(boolean ativa) {
+        this.ativa = ativa;
     }
 }
