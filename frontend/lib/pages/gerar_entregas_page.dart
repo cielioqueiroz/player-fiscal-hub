@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../models/resumo_geracao.dart';
 import '../widgets/formatadores.dart';
+import '../widgets/responsive_breakpoints.dart';
 
 const _meses = [
   'Janeiro',
@@ -70,9 +71,14 @@ class _GerarEntregasPageState extends State<GerarEntregasPage> {
     final resumo = _resumo;
     return Scaffold(
       appBar: AppBar(title: const Text('Gerar entregas')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1024),
+          child: ListView(
+            padding: EdgeInsets.all(
+              ResponsiveBreakpoints.ehTablet(MediaQuery.sizeOf(context).width) ? 32 : 24,
+            ),
+            children: [
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -129,7 +135,9 @@ class _GerarEntregasPageState extends State<GerarEntregasPage> {
               ),
             ),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

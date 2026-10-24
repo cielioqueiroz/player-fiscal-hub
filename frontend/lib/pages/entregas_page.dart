@@ -10,6 +10,7 @@ import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
 import '../widgets/situacao_chip.dart';
+import '../widgets/responsive_breakpoints.dart';
 import 'entrega_detalhe_page.dart';
 
 class EntregasPage extends StatefulWidget {
@@ -248,17 +249,80 @@ class _EntregasPageState extends State<EntregasPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Entregas')),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_resumo != null) _cardsResumo(_resumo!),
-          Padding(padding: const EdgeInsets.all(16), child: _filtros()),
-          const Divider(height: 1),
-          Expanded(child: _corpo()),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final celular = ResponsiveBreakpoints.ehCelular(constraints.maxWidth);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_resumo != null) _cardsResumo(_resumo!),
+              if (celular)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: OutlinedButton.icon(
+                      key: const Key('abrirFiltros'),
+                      onPressed: _abrirFiltros,
+                      icon: const Icon(Icons.filter_list),
+                      label: const Text('Filtros e ordenação'),
+                    ),
+                  ),
+                )
+              else
+                Padding(padding: const EdgeInsets.all(16), child: _filtrosComAcoes()),
+              const Divider(height: 1),
+              Expanded(child: _corpo()),
+            ],
+          );
+        },
       ),
     );
   }
+
+  Future<void> _abrirFiltros() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (modalContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.viewInsetsOf(modalContext).bottom + 16,
+        ),
+        child: FractionallySizedBox(
+          heightFactor: 0.85,
+          child: Column(
+            children: [
+              Expanded(child: SingleChildScrollView(child: _filtros())),
+              Row(
+                children: [
+                  TextButton(onPressed: _limpar, child: const Text('Limpar')),
+                  const Spacer(),
+                  FilledButton(onPressed: () {
+                    _aplicarFiltros();
+                    Navigator.pop(modalContext);
+                  }, child: const Text('Filtrar')),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _filtrosComAcoes() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _filtros(),
+      Wrap(spacing: 8, children: [
+        FilledButton.tonal(onPressed: _aplicarFiltros, child: const Text('Filtrar')),
+        TextButton(onPressed: _limpar, child: const Text('Limpar')),
+      ]),
+    ],
+  );
 
   Widget _cardsResumo(ResumoEntregas resumo) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -384,11 +448,6 @@ class _EntregasPageState extends State<EntregasPage> {
           icon: Icon(_crescente ? Icons.arrow_upward : Icons.arrow_downward),
           label: Text(_crescente ? 'Crescente' : 'Decrescente'),
         ),
-        FilledButton.tonal(
-          onPressed: _aplicarFiltros,
-          child: const Text('Filtrar'),
-        ),
-        TextButton(onPressed: _limpar, child: const Text('Limpar')),
       ],
     );
   }
@@ -438,8 +497,9 @@ class _EntregasPageState extends State<EntregasPage> {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final mobile = constraints.maxWidth < 600;
-        if (mobile) {
+        final celular = ResponsiveBreakpoints.ehCelular(constraints.maxWidth);
+        final compacto = !ResponsiveBreakpoints.ehDesktop(constraints.maxWidth);
+        if (celular) {
           return NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification.metrics.extentAfter < 240) _carregarMais();
@@ -466,6 +526,19 @@ class _EntregasPageState extends State<EntregasPage> {
                 );
               },
             ),
+          );
+        }
+        if (compacto) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1.35,
+            ),
+            itemCount: _entregas.length,
+            itemBuilder: (context, index) => _cartaoEntrega(_entregas[index]),
           );
         }
         return Column(
@@ -517,6 +590,27 @@ class _EntregasPageState extends State<EntregasPage> {
       },
     );
   }
+
+  Widget _cartaoEntrega(Entrega entrega) => Card(
+    child: InkWell(
+      onTap: () => _abrir(entrega),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(entrega.empresaNome, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium),
+            Text('${entrega.tipo} · ${entrega.competencia}'),
+            Row(children: [Expanded(child: Text('Vence ${formatarData(entrega.dataVencimento)}')),
+              Flexible(child: SituacaoChip(situacao: entrega.situacao))]),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _vencimento(Entrega e) {
     final data = formatarData(e.dataVencimento);

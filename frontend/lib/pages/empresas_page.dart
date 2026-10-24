@@ -5,6 +5,8 @@ import '../api/api_exception.dart';
 import '../models/empresa.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
+import '../widgets/responsive_breakpoints.dart';
+import '../widgets/responsive_decision_dialog.dart';
 import 'obrigacoes_empresa_page.dart';
 
 const _regimes = ['SIMPLES', 'LUCRO_PRESUMIDO', 'LUCRO_REAL'];
@@ -73,15 +75,12 @@ class _EmpresasPageState extends State<EmpresasPage> {
     final ativa = !empresa.ativa;
     final confirmado = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(ativa ? 'Reativar empresa?' : 'Inativar empresa?'),
-        content: Text(ativa
+      builder: (context) => ResponsiveDecisionDialog(
+        titulo: ativa ? 'Reativar empresa?' : 'Inativar empresa?',
+        conteudo: Text(ativa
             ? 'A empresa voltará a participar da geração de entregas.'
             : 'A empresa deixará de participar de novas gerações. O histórico continuará disponível.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(ativa ? 'Reativar' : 'Inativar')),
-        ],
+        confirmar: ativa ? 'Reativar' : 'Inativar',
       ),
     );
     if (confirmado != true || !mounted) return;
@@ -110,7 +109,9 @@ class _EmpresasPageState extends State<EmpresasPage> {
         icon: const Icon(Icons.add),
         label: const Text('Nova empresa'),
       ),
-      body: _corpo(),
+      body: Center(
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1440), child: _corpo()),
+      ),
     );
   }
 
@@ -135,13 +136,13 @@ class _EmpresasPageState extends State<EmpresasPage> {
                   padding: const EdgeInsets.only(bottom: 88),
                   itemCount: _empresas.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
+                  itemBuilder: (context, i) {
                     final e = _empresas[i];
-                    return ListTile(
-                      title: Text(e.nome),
-                      subtitle: Text('${formatarCnpj(e.cnpj)}${e.ativa ? '' : ' • Inativa'}'),
-                      trailing: Wrap(
+                    return LayoutBuilder(builder: (context, constraints) {
+                      final celular = ResponsiveBreakpoints.ehCelular(constraints.maxWidth);
+                      final acoes = Wrap(
                         spacing: 4,
+                        runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Chip(label: Text(nomeRegime(e.regimeTributario))),
@@ -151,9 +152,25 @@ class _EmpresasPageState extends State<EmpresasPage> {
                             child: Text(e.ativa ? 'Inativar' : 'Reativar'),
                           ),
                         ],
-                      ),
-                      onTap: () => _abrir(e),
-                    );
+                      );
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ListTile(
+                                title: Text(e.nome, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                subtitle: Text('${formatarCnpj(e.cnpj)}${e.ativa ? '' : ' • Inativa'}'),
+                                trailing: celular ? null : acoes,
+                                onTap: () => _abrir(e),
+                              ),
+                              if (celular) Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: acoes),
+                            ],
+                          ),
+                        ),
+                      );
+                    });
                   },
                 ),
         ),
@@ -224,10 +241,33 @@ class _EmpresaDialogState extends State<_EmpresaDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.empresa == null ? 'Nova empresa' : 'Editar empresa'),
-      content: SizedBox(
-        width: 420,
+    final titulo = widget.empresa == null ? 'Nova empresa' : 'Editar empresa';
+    final botoes = [
+      TextButton(
+        onPressed: _salvando ? null : () => Navigator.pop(context, false),
+        child: const Text('Voltar'),
+      ),
+      FilledButton(onPressed: _salvando ? null : _salvar, child: const Text('Salvar')),
+    ];
+    if (ResponsiveBreakpoints.ehCelular(MediaQuery.sizeOf(context).width)) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(title: Text(titulo)),
+          body: SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: _campos())),
+          bottomNavigationBar: SafeArea(child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(mainAxisAlignment: MainAxisAlignment.end, children: botoes),
+          )),
+        ),
+      );
+    }
+    return AlertDialog(title: Text(titulo), content: _campos(), actions: botoes);
+  }
+
+  Widget _campos() => SizedBox(
+        width: ResponsiveBreakpoints.ehCelular(MediaQuery.sizeOf(context).width)
+            ? MediaQuery.sizeOf(context).width - 40
+            : 420,
         child: Form(
           key: _formulario,
           child: Column(
@@ -260,14 +300,5 @@ class _EmpresaDialogState extends State<_EmpresaDialog> {
             ],
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _salvando ? null : () => Navigator.pop(context, false),
-          child: const Text('Voltar'),
-        ),
-        FilledButton(onPressed: _salvando ? null : _salvar, child: const Text('Salvar')),
-      ],
-    );
-  }
+      );
 }

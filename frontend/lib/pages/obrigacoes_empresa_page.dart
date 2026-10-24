@@ -7,6 +7,8 @@ import '../models/obrigacao_empresa.dart';
 import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
+import '../widgets/responsive_breakpoints.dart';
+import '../widgets/responsive_decision_dialog.dart';
 import 'entregas_page.dart';
 
 class ObrigacoesEmpresaPage extends StatefulWidget {
@@ -83,13 +85,11 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
   Future<void> _remover(String tipo) async {
     final confirmou = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Remover $tipo?'),
-        content: Text('A obrigação $tipo deixa de ser gerada para ${widget.empresa.nome}.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
-        ],
+      builder: (_) => ResponsiveDecisionDialog(
+        titulo: 'Remover $tipo?',
+        conteudo: Text('A obrigação $tipo deixa de ser gerada para ${widget.empresa.nome}.'),
+        confirmar: 'Confirmar',
+        cancelar: 'Voltar',
       ),
     );
     if (confirmou != true || !mounted) return;
@@ -100,7 +100,9 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.empresa.nome)),
-      body: _corpo(),
+      body: Center(
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1440), child: _corpo()),
+      ),
     );
   }
 
@@ -108,25 +110,40 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
     if (_carregando) return const Center(child: CircularProgressIndicator());
     if (_erro != null) return ErroCarregamento(mensagem: _erro!, onTentarNovamente: _carregar);
     final empresa = widget.empresa;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text('CNPJ ${formatarCnpj(empresa.cnpj)} · Regime: ${nomeRegime(empresa.regimeTributario)}'),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            icon: const Icon(Icons.assignment),
-            label: const Text('Ver entregas desta empresa'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => EntregasPage(api: widget.api, empresaIdInicial: empresa.id)),
+    return LayoutBuilder(builder: (context, constraints) {
+      final tablet = ResponsiveBreakpoints.ehTablet(constraints.maxWidth);
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('CNPJ ${formatarCnpj(empresa.cnpj)} · Regime: ${nomeRegime(empresa.regimeTributario)}'),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.assignment),
+              label: const Text('Ver entregas desta empresa'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EntregasPage(api: widget.api, empresaIdInicial: empresa.id)),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        for (final tipo in _catalogo) _cartao(tipo),
-      ],
+          const SizedBox(height: 8),
+          if (tablet)
+            GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.35,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [for (final tipo in _catalogo) _cartao(tipo)],
+            )
+          else
+            for (final tipo in _catalogo) _cartao(tipo),
+        ],
+      );
+    },
     );
   }
 
@@ -162,22 +179,24 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
       color: vinculo == null && !compativel ? Colors.grey.shade200 : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tipo.tipo, style: estilo.titleMedium),
-                  Text(tipo.descricao),
-                  const SizedBox(height: 6),
-                  detalhe,
-                ],
-              ),
-            ),
-            acao,
-          ],
-        ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final informacoes = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tipo.tipo, style: estilo.titleMedium),
+              Text(tipo.descricao),
+              const SizedBox(height: 6),
+              detalhe,
+            ],
+          );
+          if (ResponsiveBreakpoints.ehCelular(constraints.maxWidth)) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [informacoes, Align(alignment: Alignment.centerRight, child: acao)],
+            );
+          }
+          return Row(children: [Expanded(child: informacoes), acao]);
+        }),
       ),
     );
   }

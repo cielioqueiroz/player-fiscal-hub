@@ -12,6 +12,8 @@ import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
 import '../widgets/situacao_chip.dart';
+import '../widgets/responsive_breakpoints.dart';
+import '../widgets/responsive_decision_dialog.dart';
 
 const _rotulos = {
   'CONCLUIDA': 'Concluir',
@@ -122,12 +124,11 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
       default:
         final confirmou = await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Marcar como atrasada?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
-            ],
+          builder: (_) => const ResponsiveDecisionDialog(
+            titulo: 'Marcar como atrasada?',
+            conteudo: Text('A entrega passará para a situação atrasada.'),
+            confirmar: 'Confirmar',
+            cancelar: 'Voltar',
           ),
         );
         if (confirmou != true || !mounted) return;
@@ -179,7 +180,10 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Entrega #${widget.entregaId}')),
-      body: _corpo(),
+      body: Center(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: _corpo()),
+      ),
     );
   }
 
@@ -306,22 +310,39 @@ class _MotivoDialogState extends State<_MotivoDialog> {
   @override
   Widget build(BuildContext context) {
     final motivo = _controller.text.trim();
+    if (ResponsiveBreakpoints.ehCelular(MediaQuery.sizeOf(context).width)) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Cancelar entrega')),
+          body: SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: _campo(context))),
+          bottomNavigationBar: SafeArea(child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(alignment: WrapAlignment.end, spacing: 8, children: _acoes(context, motivo)),
+          )),
+        ),
+      );
+    }
     return AlertDialog(
       title: const Text('Cancelar entrega'),
-      content: TextField(
+      content: _campo(context),
+      actions: _acoes(context, motivo),
+    );
+  }
+
+  Widget _campo(BuildContext context) => TextField(
         controller: _controller,
         maxLength: 500,
         autofocus: true,
         decoration: const InputDecoration(labelText: 'Motivo'),
         onChanged: (_) => setState(() {}),
-      ),
-      actions: [
+      );
+
+  List<Widget> _acoes(BuildContext context, String motivo) => [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Voltar')),
         FilledButton(
           onPressed: motivo.isEmpty ? null : () => Navigator.pop(context, motivo),
           child: const Text('Confirmar'),
         ),
-      ],
-    );
+      ];
   }
 }
