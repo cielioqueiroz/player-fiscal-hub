@@ -15,6 +15,7 @@ class CnpjValidatorTest {
     @ValueSource(strings = {
             "11222333000181",
             "11.222.333/0001-81",
+            "00000000000191",
             "12345678000195",
             "11444777000161",
             "11222338000104",
@@ -31,9 +32,9 @@ class CnpjValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"11-222-333-0001-81", "11222333/000181"})
-    void aceitaSeparadoresEmQualquerPosicao(String cnpj) {
-        assertThat(CnpjValidator.isValido(cnpj)).isTrue();
+    @ValueSource(strings = {"11-222-333-0001-81", "11222333/000181", "11.222333/0001-81", "11.222.333/0001/81"})
+    void rejeitaMascarasForaDoFormatoPadrao(String cnpj) {
+        assertThat(CnpjValidator.isValido(cnpj)).isFalse();
     }
 
     @ParameterizedTest

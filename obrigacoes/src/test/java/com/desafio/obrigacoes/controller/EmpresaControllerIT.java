@@ -98,7 +98,7 @@ class EmpresaControllerIT extends BaseIntegrationTest {
 
     @Test
     void cnpjAlfanumericoEmMinusculasConflitaComMaiusculas() throws Exception {
-        cadastrar("Alfa", "12abc34501de35", "SIMPLES")
+        cadastrar("Alfa", "12.abc.345/01de-35", "SIMPLES")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.cnpj").value("12ABC34501DE35"));
 

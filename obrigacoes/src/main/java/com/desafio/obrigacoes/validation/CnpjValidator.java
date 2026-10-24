@@ -5,7 +5,8 @@ import java.util.regex.Pattern;
 
 public final class CnpjValidator {
 
-    private static final Pattern CARACTERES_PERMITIDOS = Pattern.compile("[A-Za-z0-9./-]+");
+    private static final Pattern SEM_MASCARA = Pattern.compile("[A-Za-z0-9]{12}[0-9]{2}");
+    private static final Pattern COM_MASCARA = Pattern.compile("[A-Za-z0-9]{2}\\.[A-Za-z0-9]{3}\\.[A-Za-z0-9]{3}/[A-Za-z0-9]{4}-[0-9]{2}");
 
     private CnpjValidator() {
     }
@@ -17,7 +18,8 @@ public final class CnpjValidator {
 
         String semEspacosNasPontas = cnpj.trim();
 
-        return CARACTERES_PERMITIDOS.matcher(semEspacosNasPontas).matches()
+        return (SEM_MASCARA.matcher(semEspacosNasPontas).matches()
+                || COM_MASCARA.matcher(semEspacosNasPontas).matches())
                 && CNPJ.isValid(semEspacosNasPontas);
     }
 
