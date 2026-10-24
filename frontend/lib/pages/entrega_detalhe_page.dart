@@ -176,11 +176,34 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
     }
   }
 
+  Future<void> _excluirDocumento(Documento documento) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (_) => ResponsiveDecisionDialog(
+        titulo: 'Excluir documento?',
+        conteudo: Text('O arquivo ${documento.nomeArquivo} será removido desta entrega.'),
+        confirmar: 'Excluir',
+      ),
+    );
+    if (confirmou != true || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await widget.api.excluirDocumento(documento.id);
+      final documentos = await widget.api.listarDocumentos(widget.entregaId);
+      if (!mounted) return;
+      setState(() => _documentos = documentos);
+    } on ApiException catch (e) {
+      _avisar(e.mensagem);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Entrega #${widget.entregaId}')),
-      body: Center(
+      body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 960), child: _corpo()),
       ),
@@ -207,10 +230,13 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
           children: [
             Text('Documentos', style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
             if (!e.isFinal)
               _enviando
                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
@@ -230,10 +256,21 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
               leading: const Icon(Icons.description_outlined),
               title: Text(d.nomeArquivo),
               subtitle: Text('${formatarTamanho(d.tamanhoBytes)} · enviado em ${formatarData(d.enviadoEm)}'),
-              trailing: TextButton.icon(
-                onPressed: () => launchUrl(widget.api.urlDownload(d.id), webOnlyWindowName: '_blank'),
-                icon: const Icon(Icons.download),
-                label: const Text('Baixar'),
+              trailing: Wrap(
+                spacing: 4,
+                children: [
+                  IconButton(
+                    tooltip: 'Baixar documento',
+                    onPressed: () => launchUrl(widget.api.urlDownload(d.id), webOnlyWindowName: '_blank'),
+                    icon: const Icon(Icons.download),
+                  ),
+                  if (!e.isFinal)
+                    IconButton(
+                      tooltip: 'Excluir documento',
+                      onPressed: _ocupado ? null : () => _excluirDocumento(d),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                ],
               ),
             ),
       ],
@@ -253,18 +290,24 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
             const SizedBox(height: 12),
             Text(_descricaoTipo == null ? e.tipo : '${e.tipo} · $_descricaoTipo', style: estilo.titleMedium),
             Text('Competência: ${e.competencia}'),
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 Text('Vencimento: ${formatarData(e.dataVencimento)}'),
                 if (e.vencida) ...[
-                  const SizedBox(width: 8),
                   const Icon(Icons.warning_amber, color: Colors.red, size: 18),
                   const Text('Vencida', style: TextStyle(color: Colors.red)),
                 ],
               ],
             ),
             const SizedBox(height: 8),
-            Row(children: [const Text('Situação: '), SituacaoChip(situacao: e.situacao)]),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [const Text('Situação:'), SituacaoChip(situacao: e.situacao)],
+            ),
             if (e.dataConclusao != null) Text('Concluída em ${formatarData(e.dataConclusao!)}'),
             if (e.motivoCancelamento != null) Text('Motivo do cancelamento: ${e.motivoCancelamento}'),
           ],
@@ -344,5 +387,4 @@ class _MotivoDialogState extends State<_MotivoDialog> {
           child: const Text('Confirmar'),
         ),
       ];
-  }
 }

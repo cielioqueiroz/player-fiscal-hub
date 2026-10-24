@@ -209,13 +209,28 @@ void main() {
       expect(find.text('guia.pdf'), findsOneWidget);
       expect(find.textContaining('245 KB'), findsOneWidget);
       expect(find.textContaining('18/06/2026'), findsOneWidget);
-      expect(find.text('Baixar'), findsOneWidget);
+      expect(find.byTooltip('Baixar documento'), findsOneWidget);
+      expect(find.byTooltip('Excluir documento'), findsOneWidget);
     });
 
     testWidgets('semDocumentos', (tester) async {
       await abrir(tester);
 
       expect(find.text('Nenhum documento anexado.'), findsOneWidget);
+    });
+
+    testWidgets('excluirDocumentoPedeConfirmacaoEChamaDelete', (tester) async {
+      final chamadas = await abrir(tester, documentos: [guia], extras: {
+        'DELETE /documentos/5': http.Response('', 204),
+      });
+
+      await tester.tap(find.byTooltip('Excluir documento'));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir documento?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Excluir'));
+      await tester.pumpAndSettle();
+
+      expect(chamadas.any((r) => r.method == 'DELETE' && r.url.path == '/documentos/5'), isTrue);
     });
 
     testWidgets('entregaFinalNaoMostraAnexar', (tester) async {

@@ -6,11 +6,13 @@ import com.desafio.obrigacoes.model.TipoObrigacao;
 import com.desafio.obrigacoes.service.EmpresaObrigacaoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/empresas/{empresaId}/obrigacoes")
+@Tag(name = "Obrigações por empresa", description = "Vínculos entre empresas e tipos de obrigação")
 public class EmpresaObrigacaoController {
 
     private final EmpresaObrigacaoService empresaObrigacaoService;

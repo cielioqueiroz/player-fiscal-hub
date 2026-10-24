@@ -61,6 +61,19 @@ void main() {
     expect(resumo.vencidasSemBaixa, 1);
   });
 
+  test('excluirDocumentoUsaDeleteELeAceita204', () async {
+    http.Request? requisicao;
+    final api = _cliente((r) async {
+      requisicao = r;
+      return http.Response('', 204);
+    });
+
+    await api.excluirDocumento(8);
+
+    expect(requisicao?.method, 'DELETE');
+    expect(requisicao?.url.path, '/documentos/8');
+  });
+
   test('corpoDeErroSemJson', () async {
     final api = _cliente((_) async => http.Response('<html>', 500));
     await expectLater(

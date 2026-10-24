@@ -16,6 +16,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -63,8 +67,11 @@ public class DocumentoService {
             throw new DadosInvalidosException("Tipo de arquivo não permitido: " + contentTypeRecebido);
         }
 
+        byte[] conteudo = lerBytes(arquivo);
+        validarConteudo(contentType, conteudo);
+
         Documento documento = new Documento(entrega, limparNome(arquivo.getOriginalFilename()),
-                contentType, arquivo.getSize(), lerBytes(arquivo), agora());
+                contentType, arquivo.getSize(), conteudo, agora());
 
         documentoRepository.save(documento);
         return DocumentoResponse.de(documento);
@@ -80,6 +87,66 @@ public class DocumentoService {
     public Documento buscar(Long id) {
         return documentoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Documento " + id + " não encontrado"));
+    }
+
+    @Transactional
+    public void excluir(Long id) {
+        Documento documento = buscar(id);
+        Long entregaId = documento.getEntrega().getId();
+        Entrega entrega = entregaRepository.buscarParaAlteracao(entregaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Entrega " + entregaId + " não encontrada"));
+        if (entrega.getSituacao().isFinal()) {
+            throw new RegraNegocioException("Não é possível excluir documentos de uma entrega " + entrega.getSituacao());
+        }
+        documentoRepository.delete(documento);
+    }
+
+    static void validarConteudo(String contentType, byte[] conteudo) {
+        boolean valido = switch (contentType) {
+            case "application/pdf" -> comecaCom(conteudo, new byte[] {'%', 'P', 'D', 'F'});
+            case "image/png" -> comecaCom(conteudo,
+                    new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A});
+            case "image/jpeg" -> comecaCom(conteudo, new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF});
+            case "application/xml", "text/xml" -> xmlValido(conteudo);
+            case "text/plain" -> textoUtf8Valido(conteudo);
+            default -> false;
+        };
+        if (!valido) {
+            throw new DadosInvalidosException("O conteúdo do arquivo não corresponde ao tipo declarado");
+        }
+    }
+
+    private static boolean xmlValido(byte[] conteudo) {
+        String texto = decodificarUtf8(conteudo);
+        if (texto == null) return false;
+        String inicio = texto.stripLeading();
+        return inicio.startsWith("<?xml") || inicio.startsWith("<");
+    }
+
+    private static boolean textoUtf8Valido(byte[] conteudo) {
+        for (byte b : conteudo) {
+            if (b == 0) return false;
+        }
+        return decodificarUtf8(conteudo) != null;
+    }
+
+    private static String decodificarUtf8(byte[] conteudo) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(conteudo)).toString();
+        } catch (CharacterCodingException e) {
+            return null;
+        }
+    }
+
+    private static boolean comecaCom(byte[] conteudo, byte[] assinatura) {
+        if (conteudo.length < assinatura.length) return false;
+        for (int i = 0; i < assinatura.length; i++) {
+            if (conteudo[i] != assinatura[i]) return false;
+        }
+        return true;
     }
 
     private static String normalizarTipo(String contentType) {

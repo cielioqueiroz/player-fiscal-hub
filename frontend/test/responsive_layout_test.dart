@@ -97,25 +97,32 @@ void main() {
     for (final largura in [360.0, 768.0, 1440.0]) {
       tester.view.physicalSize = Size(largura, 1000);
       tester.view.devicePixelRatio = 1;
-      tester.view.textScaler = TextScaler.linear(largura == 360 ? 1.3 : 1);
+      Widget app(Widget page) => MaterialApp(
+        home: Builder(builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(largura == 360 ? 1.3 : 1),
+          ),
+          child: page,
+        )),
+      );
 
-      await tester.pumpWidget(MaterialApp(home: EmpresasPage(api: api)));
+      await tester.pumpWidget(app(EmpresasPage(api: api)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Empresas em $largura px');
 
-      await tester.pumpWidget(MaterialApp(home: ObrigacoesEmpresaPage(api: api, empresa: empresa)));
+      await tester.pumpWidget(app(ObrigacoesEmpresaPage(api: api, empresa: empresa)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Obrigações em $largura px');
 
-      await tester.pumpWidget(MaterialApp(home: GerarEntregasPage(api: api)));
+      await tester.pumpWidget(app(GerarEntregasPage(api: api)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Gerar entregas em $largura px');
 
-      await tester.pumpWidget(MaterialApp(home: EntregasPage(api: api)));
+      await tester.pumpWidget(app(EntregasPage(api: api)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Entregas em $largura px');
 
-      await tester.pumpWidget(MaterialApp(home: EntregaDetalhePage(api: api, entregaId: 1)));
+      await tester.pumpWidget(app(EntregaDetalhePage(api: api, entregaId: 1)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'Detalhe em $largura px');
     }

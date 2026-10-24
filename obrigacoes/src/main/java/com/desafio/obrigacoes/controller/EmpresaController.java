@@ -5,12 +5,14 @@ import com.desafio.obrigacoes.dto.EmpresaResponse;
 import com.desafio.obrigacoes.dto.AlterarAtivaRequest;
 import com.desafio.obrigacoes.service.EmpresaService;
 import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/empresas")
+@Tag(name = "Empresas", description = "Cadastro, edição e ativação de empresas")
 public class EmpresaController {
 
     private final EmpresaService empresaService;

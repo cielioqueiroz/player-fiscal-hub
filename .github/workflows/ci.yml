@@ -88,8 +88,6 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Criar arquivos Android ausentes
-        run: flutter create --platforms=android --org com.desafio --project-name obrigacoes .
       - run: flutter build apk --debug
       - name: Artefato APK Android
         uses: actions/upload-artifact@v4
@@ -101,7 +99,7 @@ jobs:
 
   compose:
     name: Integracao dos conteineres
-    needs: [backend, frontend]
+    needs: [backend, frontend, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -126,6 +124,8 @@ jobs:
           done
           curl --fail --silent --show-error http://localhost:8080/empresas
           curl --fail --silent --show-error http://localhost:8080/catalogo-obrigacoes
+          curl --fail --silent --show-error http://localhost:8080/actuator/health
+          curl --fail --silent --show-error http://localhost:8080/v3/api-docs --output /dev/null
           curl --fail --silent --show-error http://localhost:3000/ --output /dev/null
       - name: Logs em caso de falha
         if: failure()

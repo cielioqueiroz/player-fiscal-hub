@@ -139,9 +139,10 @@ void main() {
   testWidgets('selecoesAguardamFiltrarEAplicamTodosOsCamposJuntos', (tester) async {
     final chamadas = await abrir(tester, extras: {
       'GET /entregas': (http.Request req) => [
-        req.url.queryParameters.isEmpty
-            ? entregaJson()
-            : entregaJson({'empresaId': 3, 'empresaNome': 'Mercado', 'tipo': 'DCTF', 'situacao': 'ATRASADA'}),
+        const ['empresaId', 'tipo', 'competencia', 'situacao']
+                .any(req.url.queryParameters.containsKey)
+            ? entregaJson({'empresaId': 3, 'empresaNome': 'Mercado', 'tipo': 'DCTF', 'situacao': 'ATRASADA'})
+            : entregaJson(),
       ],
     });
 
@@ -175,6 +176,9 @@ void main() {
       'tipo': 'DCTF',
       'situacao': 'ATRASADA',
       'competencia': '2026-05',
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
     });
     expect(_naTabela('Mercado'), findsOneWidget);
     expect(_naTabela('Padaria'), findsNothing);
@@ -199,7 +203,12 @@ void main() {
     await tester.tap(find.text('Filtrar'));
     await tester.pumpAndSettle();
 
-    expect(_listagens(chamadas).last.url.queryParameters, {'competencia': '2025'});
+    expect(_listagens(chamadas).last.url.queryParameters, {
+      'competencia': '2025',
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
+    });
   });
 
   testWidgets('limparZeraOsFiltros', (tester) async {
@@ -208,12 +217,22 @@ void main() {
     await tester.enterText(find.byType(TextField), '2026-05');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    expect(_listagens(chamadas).last.url.queryParameters, {'empresaId': '3', 'competencia': '2026-05'});
+    expect(_listagens(chamadas).last.url.queryParameters, {
+      'empresaId': '3',
+      'competencia': '2026-05',
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
+    });
 
     await tester.tap(find.text('Limpar'));
     await tester.pumpAndSettle();
 
-    expect(_listagens(chamadas).last.url.queryParameters, isEmpty);
+    expect(_listagens(chamadas).last.url.queryParameters, {
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
+    });
     expect(find.text("Nenhuma entrega. Use 'Gerar entregas'."), findsOneWidget);
   });
 
@@ -259,7 +278,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_listagens(chamadas), hasLength(2));
-    expect(_listagens(chamadas).last.url.queryParameters, {'empresaId': '1'});
+    expect(_listagens(chamadas).last.url.queryParameters, {
+      'empresaId': '1',
+      'page': '0',
+      'size': '20',
+      'sort': 'dataVencimento,asc',
+    });
     expect(find.text('2026-09'), findsOneWidget);
   });
 }

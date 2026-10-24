@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/entregas")
+@Tag(name = "Entregas", description = "Geração, consulta, resumo e situação das entregas")
 public class EntregaController {
 
     private static final int ANO_MINIMO = 2000;

@@ -42,7 +42,7 @@ class DocumentoServiceTest {
     @Test
     void enviadoEmVemSemFracaoDeSegundo() {
         DocumentoResponse resposta = serviceComEntregaAberta()
-                .anexar(1L, new MockMultipartFile("arquivo", "guia.pdf", "application/pdf", new byte[] {1}));
+                .anexar(1L, new MockMultipartFile("arquivo", "guia.pdf", "application/pdf", "%PDF-1.7".getBytes()));
 
         assertThat(resposta.enviadoEm()).isEqualTo(LocalDateTime.of(2026, 7, 1, 12, 0, 0));
     }

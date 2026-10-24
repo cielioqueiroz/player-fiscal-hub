@@ -1,4 +1,6 @@
 package com.desafio.obrigacoes.dto;
 
-public record AlterarAtivaRequest(Boolean ativa) {
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record AlterarAtivaRequest(@Schema(example = "false") Boolean ativa) {
 }

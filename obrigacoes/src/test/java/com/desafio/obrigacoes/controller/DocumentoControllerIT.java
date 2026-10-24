@@ -90,7 +90,7 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void pdfEmEntregaAbertaDevolve201() throws Exception {
-        enviar(entrega, pdf("guia.pdf", new byte[] {1, 2, 3}))
+        enviar(entrega, pdf("guia.pdf", "%PDF-1.7 conteudo".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.nomeArquivo").value("guia.pdf"))
@@ -103,7 +103,7 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void nomeComCaminhoESalvoSemPastas() throws Exception {
-        enviar(entrega, pdf("C:\\fakepath\\guia.pdf", new byte[] {1}))
+        enviar(entrega, pdf("C:\\fakepath\\guia.pdf", "%PDF-1.7".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nomeArquivo").value("guia.pdf"));
     }
@@ -133,28 +133,28 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void tipoComParametroEAceitoEGravadoNormalizado() throws Exception {
-        enviar(entrega, new MockMultipartFile("arquivo", "nfe.xml", "text/xml; charset=utf-8", new byte[] {1}))
+        enviar(entrega, new MockMultipartFile("arquivo", "nfe.xml", "text/xml; charset=utf-8", "<nfe/>".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.contentType").value("text/xml"));
     }
 
     @Test
     void tipoEmMaiusculasEAceitoEGravadoNormalizado() throws Exception {
-        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", "Application/PDF", new byte[] {1}))
+        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", "Application/PDF", "%PDF-1.7".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.contentType").value("application/pdf"));
     }
 
     @Test
     void tipoQueNaoEMediaTypeDevolve400() throws Exception {
-        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", "isso-nao-e-tipo", new byte[] {1}))
+        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", "isso-nao-e-tipo", "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erro").value("Tipo de arquivo não permitido: isso-nao-e-tipo"));
     }
 
     @Test
     void arquivoSemTipoDevolve400() throws Exception {
-        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", null, new byte[] {1}))
+        enviar(entrega, new MockMultipartFile("arquivo", "guia.pdf", null, "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erro").value("Tipo de arquivo não permitido: null"));
     }
@@ -168,16 +168,61 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void arquivoDeExatamente10MbEAceito() throws Exception {
-        enviar(entrega, pdf("limite.pdf", new byte[DEZ_MB]))
+        byte[] conteudo = new byte[DEZ_MB];
+        System.arraycopy("%PDF".getBytes(StandardCharsets.UTF_8), 0, conteudo, 0, 4);
+        enviar(entrega, pdf("limite.pdf", conteudo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.tamanhoBytes").value(DEZ_MB));
+    }
+
+    @Test
+    void rejeitaAssinaturaIncompativelComContentType() throws Exception {
+        enviar(entrega, pdf("guia.pdf", "texto".getBytes(StandardCharsets.UTF_8)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("O conteúdo do arquivo não corresponde ao tipo declarado"));
+        assertThat(documentosGravados()).isZero();
+    }
+
+    @Test
+    void excluiDocumentoEDevolve204() throws Exception {
+        long documentoId = idDoDocumento(pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                        "/documentos/{id}", documentoId))
+                .andExpect(status().isNoContent());
+        assertThat(documentosGravados()).isZero();
+    }
+
+    @Test
+    void documentoInexistenteDevolve404AoExcluir() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/documentos/{id}", 999999))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.erro").value("Documento 999999 não encontrado"));
+    }
+
+    @Test
+    void naoExcluiDocumentoDeEntregaConcluidaOuCancelada() throws Exception {
+        long documentoConcluido = idDoDocumento(pdf("concluido.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)));
+        concluir();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                        "/documentos/{id}", documentoConcluido))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.erro").value("Não é possível excluir documentos de uma entrega CONCLUIDA"));
+
+        jdbc.update("UPDATE entrega SET situacao = 'ABERTA', data_conclusao = NULL WHERE id = ?", entrega);
+        long documentoCancelado = idDoDocumento(pdf("cancelado.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)));
+        entregaService.alterarSituacao(entrega, new AlterarSituacaoRequest(SituacaoEntrega.CANCELADA, null, "Encerrada"));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(
+                        "/documentos/{id}", documentoCancelado))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.erro").value("Não é possível excluir documentos de uma entrega CANCELADA"));
     }
 
     @Test
     void entregaConcluidaDevolve422() throws Exception {
         concluir();
 
-        enviar(entrega, pdf("guia.pdf", new byte[] {1}))
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.erro").value("Não é possível anexar documentos a uma entrega CONCLUIDA"));
 
@@ -188,7 +233,7 @@ class DocumentoControllerIT extends BaseIntegrationTest {
     void entregaCanceladaDevolve422() throws Exception {
         entregaService.alterarSituacao(entrega, new AlterarSituacaoRequest(SituacaoEntrega.CANCELADA, null, "Encerrou"));
 
-        enviar(entrega, pdf("guia.pdf", new byte[] {1}))
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.erro").value("Não é possível anexar documentos a uma entrega CANCELADA"));
 
@@ -207,13 +252,13 @@ class DocumentoControllerIT extends BaseIntegrationTest {
     void entregaAtrasadaAceita201() throws Exception {
         entregaService.alterarSituacao(entrega, new AlterarSituacaoRequest(SituacaoEntrega.ATRASADA, null, null));
 
-        enviar(entrega, pdf("guia.pdf", new byte[] {1}))
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isCreated());
     }
 
     @Test
     void uploadEmEntregaInexistenteDevolve404() throws Exception {
-        enviar(999999, pdf("guia.pdf", new byte[] {1}))
+        enviar(999999, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.erro").value("Entrega 999999 não encontrada"));
     }
@@ -228,19 +273,19 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void documentoEnviadoApareceNaLista() throws Exception {
-        enviar(entrega, pdf("guia.pdf", new byte[] {1, 2, 3})).andExpect(status().isCreated());
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8))).andExpect(status().isCreated());
 
         mockMvc.perform(get("/entregas/{id}/documentos", entrega))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].nomeArquivo").value("guia.pdf"))
-                .andExpect(jsonPath("$[0].tamanhoBytes").value(3));
+                .andExpect(jsonPath("$[0].tamanhoBytes").value(4));
     }
 
     @Test
     void doisArquivosNaOrdemDeEnvio() throws Exception {
-        enviar(entrega, pdf("guia.pdf", new byte[] {1})).andExpect(status().isCreated());
-        enviar(entrega, pdf("recibo.pdf", new byte[] {2})).andExpect(status().isCreated());
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8))).andExpect(status().isCreated());
+        enviar(entrega, pdf("recibo.pdf", "%PDF".getBytes(StandardCharsets.UTF_8))).andExpect(status().isCreated());
 
         mockMvc.perform(get("/entregas/{id}/documentos", entrega))
                 .andExpect(jsonPath("$.length()").value(2))
@@ -268,7 +313,7 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void listagemNaoTrazConteudo() throws Exception {
-        enviar(entrega, pdf("guia.pdf", new byte[] {1})).andExpect(status().isCreated());
+        enviar(entrega, pdf("guia.pdf", "%PDF".getBytes(StandardCharsets.UTF_8))).andExpect(status().isCreated());
 
         mockMvc.perform(get("/entregas/{id}/documentos", entrega))
                 .andExpect(jsonPath("$[0].id").isNumber())
@@ -317,7 +362,7 @@ class DocumentoControllerIT extends BaseIntegrationTest {
 
     @Test
     void nomeComAcentoChegaCorretoNoDownload() throws Exception {
-        long id = idDoDocumento(pdf("guia_março.pdf", new byte[] {1}));
+        long id = idDoDocumento(pdf("guia_março.pdf", "%PDF".getBytes(StandardCharsets.UTF_8)));
 
         MvcResult resultado = mockMvc.perform(get("/documentos/{id}/download", id))
                 .andExpect(status().isOk())

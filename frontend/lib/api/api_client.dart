@@ -217,6 +217,11 @@ class ApiClient {
     _lista(Documento.fromJson),
   );
 
+  Future<void> excluirDocumento(int documentoId) => _chamar(
+    () => _client.delete(_uri('/documentos/$documentoId')),
+    _nada,
+  );
+
   Future<void> anexarDocumento(
     int entregaId,
     String nomeArquivo,

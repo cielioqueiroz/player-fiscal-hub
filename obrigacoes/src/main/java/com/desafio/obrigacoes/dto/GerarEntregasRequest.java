@@ -1,4 +1,6 @@
 package com.desafio.obrigacoes.dto;
 
-public record GerarEntregasRequest(String mesReferencia) {
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record GerarEntregasRequest(@Schema(example = "2026-09") String mesReferencia) {
 }
