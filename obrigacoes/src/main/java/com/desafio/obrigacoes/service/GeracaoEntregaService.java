@@ -35,7 +35,7 @@ public class GeracaoEntregaService {
         int criadas = 0;
         int jaExistentes = 0;
 
-        for (EmpresaObrigacao vinculo : empresaObrigacaoRepository.findAllByOrderByEmpresaIdAscTipoAsc()) {
+        for (EmpresaObrigacao vinculo : empresaObrigacaoRepository.findAllByEmpresaAtivaTrueOrderByEmpresaIdAscTipoAsc()) {
             TipoObrigacao tipo = vinculo.getTipo();
             String competencia = tipo.competenciaPara(mesReferencia);
             LocalDate vencimento = tipo.calcularVencimento(competencia);

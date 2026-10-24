@@ -3,6 +3,7 @@ package com.desafio.obrigacoes.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -24,6 +25,10 @@ class EmpresaControllerIT extends BaseIntegrationTest {
     private ResultActions cadastrar(String nome, String cnpj, String regime) throws Exception {
         return cadastrar("""
                 {"nome": "%s", "cnpj": "%s", "regimeTributario": "%s"}""".formatted(nome, cnpj, regime));
+    }
+
+    private ResultActions editar(long id, String json) throws Exception {
+        return mockMvc.perform(put("/empresas/{id}", id).contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
     private long idDe(ResultActions resultado) throws Exception {
@@ -178,5 +183,93 @@ class EmpresaControllerIT extends BaseIntegrationTest {
                         .header("Origin", "http://evil.example")
                         .header("Access-Control-Request-Method", "PATCH"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editaEmpresaEAtualizaCampos() throws Exception {
+        long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+
+        editar(id, """
+                {"nome":"Alfa Atualizada","cnpj":"12.345.678/0001-95","regimeTributario":"LUCRO_REAL"} """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Alfa Atualizada"))
+                .andExpect(jsonPath("$.cnpj").value("12345678000195"))
+                .andExpect(jsonPath("$.regimeTributario").value("LUCRO_REAL"))
+                .andExpect(jsonPath("$.ativa").value(true));
+    }
+
+    @Test
+    void editarEmpresaInexistenteDevolve404() throws Exception {
+        editar(999999L, """
+                {"nome":"Alfa","cnpj":"11222333000181","regimeTributario":"SIMPLES"} """)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cnpjDuplicadoEmOutraEmpresaAoEditarDevolve409() throws Exception {
+        idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+        long idBeta = idDe(cadastrar("Beta", "12345678000195", "LUCRO_REAL"));
+
+        editar(idBeta, """
+                {"nome":"Beta","cnpj":"11222333000181","regimeTributario":"LUCRO_REAL"} """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.erro").value("Já existe uma empresa com o CNPJ 11222333000181"));
+    }
+
+    @Test
+    void trocaDeRegimeComObrigacaoIncompativelDevolve422() throws Exception {
+        long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+        jdbc.update("INSERT INTO empresa_obrigacao (empresa_id, tipo, criado_em) VALUES (?, 'DAS', NOW())", id);
+
+        editar(id, """
+                {"nome":"Alfa","cnpj":"11222333000181","regimeTributario":"LUCRO_REAL"} """)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.erro").value("Remova as obrigações incompatíveis antes de alterar o regime: DAS"));
+    }
+
+    @Test
+    void editarValidaCnpjCamposObrigatoriosENome() throws Exception {
+        long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+
+        editar(id, """
+                {"nome":"Alfa","cnpj":"11222333000182","regimeTributario":"SIMPLES"} """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("CNPJ inválido"));
+        editar(id, """
+                {"nome":" ","cnpj":"11222333000181","regimeTributario":"SIMPLES"} """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("Nome é obrigatório"));
+    }
+
+    @Test
+    void inativaEReativaEmpresaEFiltraListagem() throws Exception {
+        long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+
+        mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ativa\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativa").value(false));
+        mockMvc.perform(get("/empresas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/empresas").param("incluirInativas", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].ativa").value(false));
+        mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ativa\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativa").value(true));
+    }
+
+    @Test
+    void inativarEmpresaInexistenteDevolve404ECorpoInvalidoDevolve400() throws Exception {
+        mockMvc.perform(patch("/empresas/{id}/ativa", 999999L).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ativa\":false}"))
+                .andExpect(status().isNotFound());
+        long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
+        mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("ativa é obrigatória"));
     }
 }

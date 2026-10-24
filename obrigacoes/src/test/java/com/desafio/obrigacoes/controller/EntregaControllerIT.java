@@ -60,6 +60,17 @@ class EntregaControllerIT extends BaseIntegrationTest {
     }
 
     @Test
+    void naoGeraEntregasParaEmpresaInativa() throws Exception {
+        jdbc.update("UPDATE empresa SET ativa = FALSE WHERE id = ?", empresaB);
+
+        gerar(MES_MAIO)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criadas").value(2));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM entrega WHERE empresa_id = ?", Integer.class, empresaB))
+                .isZero();
+    }
+
+    @Test
     void mesInexistenteDevolve400() throws Exception {
         gerar("""
                 {"mesReferencia":"2026-13"}""")

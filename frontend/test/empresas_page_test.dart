@@ -130,4 +130,80 @@ void main() {
     expect(chamadas.any((r) => r.url.path == '/empresas/1/obrigacoes'), isTrue);
     expect(find.text('Ver entregas desta empresa'), findsOneWidget);
   });
+
+  testWidgets('editarReutilizaFormularioPreenchidoEEnviaPut', (tester) async {
+    Map<String, dynamic>? corpo;
+    http.Request? requisicao;
+    final chamadas = await abrir(tester, extras: {
+      'PUT /empresas/1': (http.Request r) {
+        requisicao = r;
+        corpo = jsonDecode(r.body) as Map<String, dynamic>;
+        return jsonResp({..._padaria, 'nome': 'Padaria Editada'});
+      },
+    });
+
+    await tester.tap(find.text('Editar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Editar empresa'), findsOneWidget);
+    expect(tester.widget<TextFormField>(find.byKey(const Key('campoNome'))).controller!.text, 'Padaria');
+    expect(tester.widget<TextFormField>(find.byKey(const Key('campoCnpj'))).controller!.text, '11222333000181');
+    await tester.enterText(find.byKey(const Key('campoNome')), 'Padaria Editada');
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(requisicao?.method, 'PUT');
+    expect(corpo, {'nome': 'Padaria Editada', 'cnpj': '11222333000181', 'regimeTributario': 'SIMPLES'});
+    expect(_listagens(chamadas), hasLength(2));
+  });
+
+  testWidgets('inativacaoExigeConfirmacaoEChamaPatch', (tester) async {
+    http.Request? requisicao;
+    await abrir(tester, extras: {
+      'PATCH /empresas/1/ativa': (http.Request r) {
+        requisicao = r;
+        return jsonResp({..._padaria, 'ativa': false});
+      },
+    });
+
+    await tester.tap(find.text('Inativar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Inativar empresa?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Inativar'));
+    await tester.pumpAndSettle();
+
+    expect(requisicao?.method, 'PATCH');
+    expect(jsonDecode(requisicao!.body), {'ativa': false});
+    expect(find.text('Inativar empresa?'), findsNothing);
+  });
+
+  testWidgets('erroDoBackendAoEditarPermaneceNoFormulario', (tester) async {
+    await abrir(tester, extras: {
+      'PUT /empresas/1': jsonResp({'erro': 'Remova as obrigações incompatíveis antes de alterar o regime: DAS'}, 422),
+    });
+
+    await tester.tap(find.text('Editar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('campoRegime')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lucro Real').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remova as obrigações incompatíveis antes de alterar o regime: DAS'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
+  });
+
+  testWidgets('filtroSolicitaInativasEIndicaEmpresaInativa', (tester) async {
+    final chamadas = await abrir(tester, empresas: [
+      {..._padaria, 'ativa': false},
+    ]);
+    expect(find.text('11.222.333/0001-81 • Inativa'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('mostrarInativas')));
+    await tester.pumpAndSettle();
+
+    expect(chamadas.any((r) => r.url.queryParameters['incluirInativas'] == 'true'), isTrue);
+  });
 }
