@@ -5,6 +5,7 @@ import 'api/api_client.dart';
 import 'pages/empresas_page.dart';
 import 'pages/entregas_page.dart';
 import 'pages/gerar_entregas_page.dart';
+import 'widgets/responsive_breakpoints.dart';
 
 void main() {
   runApp(MeuApp(api: ApiClient()));
@@ -51,7 +52,7 @@ class _CascaState extends State<_Casca> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 700) {
+        if (ResponsiveBreakpoints.ehCelular(constraints.maxWidth)) {
           return Scaffold(
             body: _tela(),
             bottomNavigationBar: NavigationBar(
@@ -97,7 +98,14 @@ class _CascaState extends State<_Casca> {
                 ],
               ),
               const VerticalDivider(width: 1),
-              Expanded(child: _tela()),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1440),
+                    child: _tela(),
+                  ),
+                ),
+              ),
             ],
           ),
         );

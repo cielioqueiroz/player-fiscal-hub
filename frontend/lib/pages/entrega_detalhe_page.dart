@@ -179,7 +179,12 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Entrega #${widget.entregaId}')),
-      body: _corpo(),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: _corpo(),
+        ),
+      ),
     );
   }
 
@@ -203,10 +208,12 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          runSpacing: 8,
           children: [
             Text('Documentos', style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
             if (!e.isFinal)
               _enviando
                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
@@ -249,7 +256,8 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
             const SizedBox(height: 12),
             Text(_descricaoTipo == null ? e.tipo : '${e.tipo} · $_descricaoTipo', style: estilo.titleMedium),
             Text('Competência: ${e.competencia}'),
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text('Vencimento: ${formatarData(e.dataVencimento)}'),
                 if (e.vencida) ...[
@@ -260,7 +268,11 @@ class _EntregaDetalhePageState extends State<EntregaDetalhePage> {
               ],
             ),
             const SizedBox(height: 8),
-            Row(children: [const Text('Situação: '), SituacaoChip(situacao: e.situacao)]),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              children: [const Text('Situação: '), SituacaoChip(situacao: e.situacao)],
+            ),
             if (e.dataConclusao != null) Text('Concluída em ${formatarData(e.dataConclusao!)}'),
             if (e.motivoCancelamento != null) Text('Motivo do cancelamento: ${e.motivoCancelamento}'),
           ],

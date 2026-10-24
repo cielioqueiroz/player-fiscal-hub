@@ -5,6 +5,7 @@ import '../api/api_exception.dart';
 import '../models/empresa.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
+import '../widgets/responsive_breakpoints.dart';
 import 'obrigacoes_empresa_page.dart';
 
 const _regimes = ['SIMPLES', 'LUCRO_PRESUMIDO', 'LUCRO_REAL'];
@@ -131,28 +132,30 @@ class _EmpresasPageState extends State<EmpresasPage> {
         Expanded(
           child: _empresas.isEmpty
               ? const Center(child: Text('Nenhuma empresa cadastrada. Use "Nova empresa".'))
-              : ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 88),
-                  itemCount: _empresas.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) {
-                    final e = _empresas[i];
-                    return ListTile(
-                      title: Text(e.nome),
-                      subtitle: Text('${formatarCnpj(e.cnpj)}${e.ativa ? '' : ' • Inativa'}'),
-                      trailing: Wrap(
-                        spacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Chip(label: Text(nomeRegime(e.regimeTributario))),
-                          TextButton(onPressed: () => _editar(e), child: const Text('Editar')),
-                          TextButton(
-                            onPressed: () => _alterarAtiva(e),
-                            child: Text(e.ativa ? 'Inativar' : 'Reativar'),
-                          ),
-                        ],
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= ResponsiveBreakpoints.celular &&
+                        !ResponsiveBreakpoints.ehDesktop(constraints.maxWidth)) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 4,
+                          childAspectRatio: 1.0,
+                        ),
+                        itemCount: _empresas.length,
+                        itemBuilder: (context, index) => _cartaoEmpresa(_empresas[index], celular: false),
+                      );
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 88),
+                      itemCount: _empresas.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) => _cartaoEmpresa(
+                        _empresas[index],
+                        celular: ResponsiveBreakpoints.ehCelular(constraints.maxWidth),
                       ),
-                      onTap: () => _abrir(e),
                     );
                   },
                 ),
@@ -160,6 +163,35 @@ class _EmpresasPageState extends State<EmpresasPage> {
       ],
     );
   }
+
+  Widget _cartaoEmpresa(Empresa empresa, {required bool celular}) => Card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          title: Text(empresa.nome, maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Text('${formatarCnpj(empresa.cnpj)}${empresa.ativa ? '' : ' • Inativa'}'),
+          trailing: celular ? null : Chip(label: Text(nomeRegime(empresa.regimeTributario))),
+          onTap: () => _abrir(empresa),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 8, 8),
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              if (celular) Chip(label: Text(nomeRegime(empresa.regimeTributario))),
+              TextButton(onPressed: () => _editar(empresa), child: const Text('Editar')),
+              TextButton(
+                onPressed: () => _alterarAtiva(empresa),
+                child: Text(empresa.ativa ? 'Inativar' : 'Reativar'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _EmpresaDialog extends StatefulWidget {
@@ -224,11 +256,32 @@ class _EmpresaDialogState extends State<_EmpresaDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.empresa == null ? 'Nova empresa' : 'Editar empresa'),
-      content: SizedBox(
-        width: 420,
-        child: Form(
+    final titulo = widget.empresa == null ? 'Nova empresa' : 'Editar empresa';
+    final botoes = [
+      TextButton(
+        onPressed: _salvando ? null : () => Navigator.pop(context, false),
+        child: const Text('Voltar'),
+      ),
+      FilledButton(onPressed: _salvando ? null : _salvar, child: const Text('Salvar')),
+    ];
+    if (ResponsiveBreakpoints.ehCelular(MediaQuery.sizeOf(context).width)) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(title: Text(titulo)),
+          body: SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: _campos())),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: botoes),
+            ),
+          ),
+        ),
+      );
+    }
+    return AlertDialog(title: Text(titulo), content: SizedBox(width: 420, child: _campos()), actions: botoes);
+  }
+
+  Widget _campos() => Form(
           key: _formulario,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -259,15 +312,5 @@ class _EmpresaDialogState extends State<_EmpresaDialog> {
                 ),
             ],
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _salvando ? null : () => Navigator.pop(context, false),
-          child: const Text('Voltar'),
-        ),
-        FilledButton(onPressed: _salvando ? null : _salvar, child: const Text('Salvar')),
-      ],
-    );
-  }
+        );
 }
