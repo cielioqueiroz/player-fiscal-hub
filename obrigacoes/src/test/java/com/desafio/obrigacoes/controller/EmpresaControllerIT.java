@@ -246,7 +246,7 @@ class EmpresaControllerIT extends BaseIntegrationTest {
         long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
 
         mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"ativa":false}"""))
+                        .content("{\"ativa\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ativa").value(false));
         mockMvc.perform(get("/empresas"))
@@ -257,7 +257,7 @@ class EmpresaControllerIT extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].ativa").value(false));
         mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"ativa":true}"""))
+                        .content("{\"ativa\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ativa").value(true));
     }
@@ -265,7 +265,7 @@ class EmpresaControllerIT extends BaseIntegrationTest {
     @Test
     void inativarEmpresaInexistenteDevolve404ECorpoInvalidoDevolve400() throws Exception {
         mockMvc.perform(patch("/empresas/{id}/ativa", 999999L).contentType(MediaType.APPLICATION_JSON)
-                        .content("""{"ativa":false}"""))
+                        .content("{\"ativa\":false}"))
                 .andExpect(status().isNotFound());
         long id = idDe(cadastrar("Alfa", "11222333000181", "SIMPLES"));
         mockMvc.perform(patch("/empresas/{id}/ativa", id).contentType(MediaType.APPLICATION_JSON).content("{}"))
