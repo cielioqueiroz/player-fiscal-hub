@@ -60,6 +60,15 @@ class GeracaoEntregaServiceIT extends BaseIntegrationTest {
     }
 
     @Test
+    void empresaInativaNaoGeraNovasEntregas() {
+        jdbc.update("UPDATE empresa SET ativa = FALSE WHERE id = ?", empresaA);
+
+        assertThat(geracaoService.gerar(MAIO)).isEqualTo(new ResumoGeracaoResponse("2026-05", 2, 0));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM entrega WHERE empresa_id = ?", Integer.class, empresaA))
+                .isZero();
+    }
+
+    @Test
     void gerarMaioGravaCompetenciaVencimentoESituacao() {
         geracaoService.gerar(MAIO);
 

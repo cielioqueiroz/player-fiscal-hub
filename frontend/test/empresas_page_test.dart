@@ -206,4 +206,27 @@ void main() {
 
     expect(chamadas.any((r) => r.url.queryParameters['incluirInativas'] == 'true'), isTrue);
   });
+
+  testWidgets('reativacaoExigeConfirmacaoEChamaPatch', (tester) async {
+    http.Request? requisicao;
+    await abrir(tester, empresas: [
+      {..._padaria, 'ativa': false},
+    ], extras: {
+      'PATCH /empresas/1/ativa': (http.Request r) {
+        requisicao = r;
+        return jsonResp({..._padaria, 'ativa': true});
+      },
+    });
+
+    await tester.tap(find.byKey(const Key('mostrarInativas')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reativar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reativar empresa?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Reativar'));
+    await tester.pumpAndSettle();
+
+    expect(requisicao?.method, 'PATCH');
+    expect(jsonDecode(requisicao!.body), {'ativa': true});
+  });
 }
