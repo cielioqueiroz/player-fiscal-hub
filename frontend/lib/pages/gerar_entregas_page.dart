@@ -70,9 +70,12 @@ class _GerarEntregasPageState extends State<GerarEntregasPage> {
     final resumo = _resumo;
     return Scaffold(
       appBar: AppBar(title: const Text('Gerar entregas')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -129,7 +132,9 @@ class _GerarEntregasPageState extends State<GerarEntregasPage> {
               ),
             ),
           ],
-        ],
+          ],
+        ),
+      ),
       ),
     );
   }

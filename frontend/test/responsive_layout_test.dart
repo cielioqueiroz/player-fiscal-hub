@@ -3,11 +3,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/pages/entregas_page.dart';
+import 'package:frontend/pages/empresas_page.dart';
+import 'package:frontend/pages/gerar_entregas_page.dart';
+import 'package:frontend/pages/obrigacoes_empresa_page.dart';
+import 'package:frontend/pages/entrega_detalhe_page.dart';
+import 'package:frontend/models/empresa.dart';
+import 'package:frontend/widgets/responsive_breakpoints.dart';
 
 import 'api_fake.dart';
 
+Widget comEscalaDeTexto(Widget filho, double escala) => MaterialApp(
+  home: Builder(
+    builder: (context) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(escala)),
+      child: filho,
+    ),
+  ),
+);
+
 void main() {
   tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+  test('breakpointsCobremCelularTabletEDesktop', () {
+    expect(ResponsiveBreakpoints.ehCelular(599), isTrue);
+    expect(ResponsiveBreakpoints.ehTablet(600), isTrue);
+    expect(ResponsiveBreakpoints.ehTablet(1024), isTrue);
+    expect(ResponsiveBreakpoints.ehDesktop(1025), isTrue);
+  });
 
   test('usa a API local no desenvolvimento', () {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
@@ -35,7 +57,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('tabela permite consultar a situacao em uma janela estreita', (
+  testWidgets('celular mostra os dados da entrega em um card', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -56,9 +78,79 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: EntregasPage(api: api)));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.drag(find.text('Padaria'), const Offset(-700, 0));
-    await tester.pumpAndSettle();
+    expect(find.text('DAS · 2026-05'), findsOneWidget);
+    expect(find.byType(DataTable), findsNothing);
     expect(find.text('ABERTA').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tablet usa cards em duas colunas e desktop usa tabela', (tester) async {
+    final api = apiFake({
+      'GET /empresas': [],
+      'GET /entregas': [entregaJson()],
+    });
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    tester.view.physicalSize = const Size(768, 1024);
+    await tester.pumpWidget(MaterialApp(home: EntregasPage(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.byType(GridView), findsOneWidget);
+    expect(find.byType(DataTable), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(1440, 900);
+    await tester.pumpWidget(MaterialApp(home: EntregasPage(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.byType(DataTable), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('telas principais cabem nos breakpoints com texto ampliado', (tester) async {
+    final empresa = Empresa.fromJson({
+      'id': 1,
+      'nome': 'Padaria',
+      'cnpj': '11222333000181',
+      'regimeTributario': 'SIMPLES',
+      'ativa': true,
+    });
+    final api = apiFake({
+      'GET /empresas': [
+        {'id': 1, 'nome': 'Padaria', 'cnpj': '11222333000181', 'regimeTributario': 'SIMPLES', 'ativa': true},
+      ],
+      'GET /catalogo-obrigacoes': [
+        {'tipo': 'DAS', 'descricao': 'Guia mensal', 'periodicidade': 'MENSAL', 'regimesAceitos': ['SIMPLES']},
+      ],
+      'GET /empresas/1/obrigacoes': [],
+      'GET /entregas': [entregaJson()],
+      'GET /entregas/1': entregaJson(),
+      'GET /entregas/1/documentos': [],
+    });
+
+    for (final largura in [360.0, 768.0, 1440.0]) {
+      tester.view.physicalSize = Size(largura, 1000);
+      tester.view.devicePixelRatio = 1;
+      final escala = largura == 360 ? 1.3 : 1.0;
+
+      await tester.pumpWidget(comEscalaDeTexto(EmpresasPage(api: api), escala));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Empresas em $largura px');
+
+      await tester.pumpWidget(comEscalaDeTexto(ObrigacoesEmpresaPage(api: api, empresa: empresa), escala));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Obrigações em $largura px');
+
+      await tester.pumpWidget(comEscalaDeTexto(GerarEntregasPage(api: api), escala));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Gerar entregas em $largura px');
+
+      await tester.pumpWidget(comEscalaDeTexto(EntregasPage(api: api), escala));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Entregas em $largura px');
+
+      await tester.pumpWidget(comEscalaDeTexto(EntregaDetalhePage(api: api, entregaId: 1), escala));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Detalhe em $largura px');
+    }
   });
 }

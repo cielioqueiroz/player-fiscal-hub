@@ -8,6 +8,7 @@ import '../models/tipo_obrigacao.dart';
 import '../widgets/erro_carregamento.dart';
 import '../widgets/formatadores.dart';
 import '../widgets/situacao_chip.dart';
+import '../widgets/responsive_breakpoints.dart';
 import 'entrega_detalhe_page.dart';
 
 class EntregasPage extends StatefulWidget {
@@ -161,18 +162,70 @@ class _EntregasPageState extends State<EntregasPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Entregas')),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(padding: const EdgeInsets.all(16), child: _filtros()),
-          const Divider(height: 1),
-          Expanded(child: _corpo()),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final celular = ResponsiveBreakpoints.ehCelular(constraints.maxWidth);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (celular)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: OutlinedButton.icon(
+                    key: const Key('abrirFiltros'),
+                    onPressed: _abrirFiltros,
+                    icon: const Icon(Icons.filter_list),
+                    label: const Text('Filtros'),
+                  ),
+                )
+              else
+                Padding(padding: const EdgeInsets.all(16), child: _filtros()),
+              const Divider(height: 1),
+              Expanded(child: _corpo()),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _filtros() {
+  Future<void> _abrirFiltros() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (modalContext) => SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          MediaQuery.viewInsetsOf(modalContext).bottom + 16,
+        ),
+        child: FractionallySizedBox(
+          heightFactor: 0.85,
+          child: Column(
+            children: [
+              Expanded(child: SingleChildScrollView(child: _filtros(mostrarAcoes: false))),
+              Row(
+                children: [
+                  TextButton(onPressed: _limpar, child: const Text('Limpar')),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () {
+                      _aplicarFiltros();
+                      Navigator.pop(modalContext);
+                    },
+                    child: const Text('Filtrar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _filtros({bool mostrarAcoes = true}) {
     final empresaSelecionada = _empresas.any((e) => e.id == _empresaId)
         ? _empresaId
         : null;
@@ -227,11 +280,13 @@ class _EntregasPageState extends State<EntregasPage> {
             onSubmitted: (_) => _aplicarFiltros(),
           ),
         ),
-        FilledButton.tonal(
-          onPressed: _aplicarFiltros,
-          child: const Text('Filtrar'),
-        ),
-        TextButton(onPressed: _limpar, child: const Text('Limpar')),
+        if (mostrarAcoes) ...[
+          FilledButton.tonal(
+            onPressed: _aplicarFiltros,
+            child: const Text('Filtrar'),
+          ),
+          TextButton(onPressed: _limpar, child: const Text('Limpar')),
+        ],
       ],
     );
   }
@@ -280,7 +335,28 @@ class _EntregasPageState extends State<EntregasPage> {
       );
     }
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
+      builder: (context, constraints) {
+        if (!ResponsiveBreakpoints.ehDesktop(constraints.maxWidth)) {
+          if (ResponsiveBreakpoints.ehCelular(constraints.maxWidth)) {
+            return ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _entregas.length,
+              itemBuilder: (context, index) => _cartaoEntrega(_entregas[index]),
+            );
+          }
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.6,
+            ),
+            itemCount: _entregas.length,
+            itemBuilder: (context, index) => _cartaoEntrega(_entregas[index]),
+          );
+        }
+        return SingleChildScrollView(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
@@ -310,9 +386,38 @@ class _EntregasPageState extends State<EntregasPage> {
             ),
           ),
         ),
-      ),
+        );
+      },
     );
   }
+
+  Widget _cartaoEntrega(Entrega entrega) => Card(
+    child: InkWell(
+      onTap: () => _abrir(entrega),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              entrega.empresaNome,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text('${entrega.tipo} · ${entrega.competencia}'),
+            Text('Vencimento: ${formatarData(entrega.dataVencimento)}'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SituacaoChip(situacao: entrega.situacao),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _vencimento(Entrega e) {
     final data = formatarData(e.dataVencimento);

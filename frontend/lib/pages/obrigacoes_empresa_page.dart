@@ -100,7 +100,12 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.empresa.nome)),
-      body: _corpo(),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: _corpo(),
+        ),
+      ),
     );
   }
 
@@ -138,11 +143,14 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
     final Widget acao;
     final Widget detalhe;
     if (vinculo != null) {
-      detalhe = Row(children: [
-        const Icon(Icons.check_circle, color: Colors.green, size: 18),
-        const SizedBox(width: 6),
-        Text('Anexada em ${formatarData(vinculo.criadoEm)}'),
-      ]);
+      detalhe = Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 18),
+          Text('Anexada em ${formatarData(vinculo.criadoEm)}'),
+        ],
+      );
       acao = OutlinedButton(onPressed: _ocupado ? null : () => _remover(tipo.tipo), child: const Text('Remover'));
     } else if (!compativel) {
       detalhe = Text(
@@ -162,20 +170,15 @@ class _ObrigacoesEmpresaPageState extends State<ObrigacoesEmpresaPage> {
       color: vinculo == null && !compativel ? Colors.grey.shade200 : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tipo.tipo, style: estilo.titleMedium),
-                  Text(tipo.descricao),
-                  const SizedBox(height: 6),
-                  detalhe,
-                ],
-              ),
-            ),
-            acao,
+            Text(tipo.tipo, style: estilo.titleMedium),
+            Text(tipo.descricao),
+            const SizedBox(height: 6),
+            detalhe,
+            const SizedBox(height: 8),
+            Align(alignment: Alignment.centerLeft, child: acao),
           ],
         ),
       ),
