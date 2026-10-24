@@ -142,7 +142,7 @@ class _EmpresasPageState extends State<EmpresasPage> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 4,
-                          childAspectRatio: 1.25,
+                          childAspectRatio: 1.0,
                         ),
                         itemCount: _empresas.length,
                         itemBuilder: (context, index) => _cartaoEmpresa(_empresas[index], celular: false),
